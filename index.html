@@ -158,7 +158,20 @@ a,button{cursor:crosshair}
 .summary-panel{border:var(--border);margin-top:24px}
 .summary-inner{padding:20px;font-size:12px;line-height:1.9;color:#333;border-left:6px solid var(--yellow)}
 
-/* Recommendations */
+/* Limits panel */
+.limits-panel{border:var(--border);border-top:none;background:#FAFAF5}
+.limits-head{padding:10px 16px;border-bottom:var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px;color:#555}
+.limits-body{display:grid;grid-template-columns:1fr 1fr;border-bottom:var(--border)}
+.limits-col{padding:14px 16px}
+.limits-col:first-child{border-right:var(--border)}
+.limits-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;margin-bottom:8px}
+.limits-label.ok{color:#166534}
+.limits-label.err{color:var(--red)}
+.limits-item{font-size:10px;color:#666;padding:3px 0;letter-spacing:.02em;border-bottom:1px solid #E8E6DF}
+.limits-item:last-child{border-bottom:none}
+.limits-foot{padding:10px 16px;font-size:10px;color:#888;letter-spacing:.02em;font-style:italic}
+
+
 .rec-full{border:var(--border);border-top:none}
 .rec-item{padding:14px 16px;border-bottom:1px solid #E4E2DB;display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:start}
 .rec-item:last-child{border-bottom:none}
@@ -281,6 +294,12 @@ a,button{cursor:crosshair}
             <span class="field-hint" id="fetch-status">// Insere a URL e clica "Buscar" — o HTML é carregado automaticamente</span>
           </div>
 
+          <div class="field">
+            <label>Keyword alvo <span style="color:#aaa;font-weight:400">(opcional)</span></label>
+            <input type="text" id="audit-keyword" placeholder="ex: advogados lisboa, software gestão rh...">
+            <span class="field-hint">// A IA vai avaliar a página especificamente para esta keyword</span>
+          </div>
+
           <!-- Fallback manual collapsible -->
           <div class="fallback-toggle" id="fallback-toggle" onclick="toggleFallback()">
             <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4l3.5 3.5L9 4"/></svg>
@@ -341,6 +360,36 @@ a,button{cursor:crosshair}
           <button class="btn btn-ghost" onclick="document.getElementById('results').style.display='none';document.getElementById('audit-empty').style.display='';document.getElementById('audit-html').value=''">
             ✕ Nova
           </button>
+        </div>
+
+        <!-- Limitations notice -->
+        <div class="limits-panel">
+          <div class="limits-head">
+            <svg width="12" height="12" viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4.5"/><path d="M6 5.5v2.5M6 4h.01"/></svg>
+            O que foi analisado — e o que não foi
+          </div>
+          <div class="limits-body">
+            <div class="limits-col">
+              <div class="limits-label ok">✓ Analisado</div>
+              <div class="limits-item">Meta title e description</div>
+              <div class="limits-item">Estrutura de headings (H1–H3)</div>
+              <div class="limits-item">Imagens sem alt text</div>
+              <div class="limits-item">Links internos e externos</div>
+              <div class="limits-item">Canonical, viewport, schema</div>
+              <div class="limits-item">Open Graph / redes sociais</div>
+              <div class="limits-item" id="limits-keyword-line" style="display:none">Relevância para keyword alvo</div>
+            </div>
+            <div class="limits-col">
+              <div class="limits-label err">✗ Não analisado</div>
+              <div class="limits-item">Velocidade / Core Web Vitals</div>
+              <div class="limits-item">Backlinks e autoridade</div>
+              <div class="limits-item">Indexação e robots.txt</div>
+              <div class="limits-item">Redirects e erros 404</div>
+              <div class="limits-item">Dados reais do Google Search Console</div>
+              <div class="limits-item">Outras páginas do site</div>
+            </div>
+          </div>
+          <div class="limits-foot">// Análise baseada apenas no HTML desta página — valida resultados críticos com Google Search Console ou Screaming Frog</div>
         </div>
 
         <!-- Summary -->
@@ -579,6 +628,7 @@ async function fetchUrl() {
 async function runAudit() {
   const html = document.getElementById('audit-html').value.trim();
   const url = document.getElementById('audit-url').value.trim() || 'URL não especificado';
+  const keyword = document.getElementById('audit-keyword').value.trim();
   if (!html) {
     // If no html and url exists, try to fetch first
     if (document.getElementById('audit-url').value.trim()) {
@@ -599,9 +649,13 @@ async function runAudit() {
 
   const local = preAnalyse(html);
 
+  // Show keyword line in limits panel if keyword provided
+  if (keyword) document.getElementById('limits-keyword-line').style.display = '';
+
   const prompt = `És um especialista em SEO técnico. Analisa este HTML e gera um relatório detalhado.
 
 URL: ${url}
+${keyword ? `Keyword alvo: "${keyword}" — avalia se a página está optimizada para esta keyword` : ''}
 HTML (primeiros 8000 chars): ${html.substring(0, 8000)}
 
 Dados pré-analisados:
@@ -618,14 +672,15 @@ Responde APENAS com JSON válido:
 {
   "score": <0-100>,
   "grade": <"Excelente"|"Bom"|"Razoável"|"Fraco"|"Crítico">,
-  "summary": "<2-3 frases sobre o estado SEO>",
+  "summary": "<2-3 frases sobre o estado SEO${keyword ? ` e relevância para "${keyword}"` : ''}>",
+  "keyword_analysis": ${keyword ? `"<análise de 1-2 frases sobre quão bem a página está optimizada para '${keyword}'. Menciona se a keyword aparece no título, H1, meta description e conteúdo>"` : 'null'},
   "meta_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
   "content_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
   "tech_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
   "issues": [{"severity":"critical"|"warning"|"ok","text":"<texto>"}],
-  "recommendations": [{"text":"<recomendação accionável>"}]
+  "recommendations": [{"text":"<recomendação accionável${keyword ? ` focada em '${keyword}'` : ''}","priority":"high"|"medium"|"low"}]
 }
-4-5 items por secção de checks. 4-5 issues. 5-6 recomendações.`;
+4-5 items por secção de checks. 4-5 issues. 5-6 recomendações ordenadas por prioridade.`;
 
   let data;
   try {
@@ -640,7 +695,7 @@ Responde APENAS com JSON válido:
     data = buildFallback(local);
   }
 
-  currentAudit = { id: 'l-' + Date.now(), url, data, local, criado_em: new Date().toISOString() };
+  currentAudit = { id: 'l-' + Date.now(), url, keyword, data, local, criado_em: new Date().toISOString() };
   renderResults(data);
   setStatus('Auditoria concluída', false);
 
@@ -716,7 +771,11 @@ function renderResults(data) {
   document.getElementById('stat-warn').textContent = warn;
   document.getElementById('stat-pass').textContent = pass;
 
-  document.getElementById('ai-summary').textContent = data.summary || '';
+  document.getElementById('ai-summary').innerHTML = data.summary || '';
+  if (data.keyword_analysis) {
+    const kw = currentAudit?.keyword || '';
+    document.getElementById('ai-summary').innerHTML += `<div style="margin-top:14px;padding-top:14px;border-top:2px solid var(--yellow)"><span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888">// Keyword: "${kw}"</span><br><br>${data.keyword_analysis}</div>`;
+  }
 
   const renderChecks = (id, checks, badgeId) => {
     const p = (checks||[]).filter(c => c.pass).length, t = (checks||[]).length;
@@ -816,70 +875,220 @@ function exportPDF() {
   if (!currentAudit || typeof window.jspdf === 'undefined') { showToast('A carregar PDF...'); return; }
   const { jsPDF } = window.jspdf;
   const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W = 210, M = 18;
-  let y = 20;
-  const check = (n) => { if (y + n > 275) { doc.addPage(); y = 20; } };
-  const section = (title) => {
-    check(12);
-    doc.setFillColor(10,10,10); doc.rect(M, y, W-M*2, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
-    doc.text(title.toUpperCase(), M+4, y+5.5); y += 12;
+  const W = 210, M = 16;
+  let y = 0;
+
+  const addPage = () => { doc.addPage(); y = 24; };
+  const checkY = (n) => { if (y + n > 272) addPage(); };
+
+  const section = (title, accent) => {
+    checkY(14);
+    if (accent) {
+      doc.setFillColor(232,255,0); doc.rect(M, y, W-M*2, 9, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(10,10,10);
+    } else {
+      doc.setFillColor(10,10,10); doc.rect(M, y, W-M*2, 9, 'F');
+      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
+    }
+    doc.text(title.toUpperCase(), M+4, y+6); y += 13;
   };
 
-  // Cover
-  doc.setFillColor(245,244,239); doc.rect(0,0,W,297,'F');
-  doc.setFillColor(10,10,10); doc.rect(0,0,W,90,'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(232,255,0);
-  doc.text('SEO_AUDIT', M, 45);
-  doc.setFontSize(11); doc.setTextColor(100,100,100);
-  doc.text(currentAudit.url, M, 58);
-  doc.text(new Date(currentAudit.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'}), M, 70);
+  const line = () => {
+    doc.setDrawColor(220,218,210); doc.setLineWidth(0.3);
+    doc.line(M, y, W-M, y); y += 4;
+  };
+
   const sc = currentAudit.data.score;
   const scCol = sc>=70?[22,101,52]:sc>=40?[180,83,9]:[255,43,0];
-  doc.setFillColor(...scCol);
-  doc.rect(M, 100, 55, 35, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(26); doc.setTextColor(255,255,255);
-  doc.text(String(sc)+'/100', M+6, 116);
-  doc.setFontSize(9); doc.text(currentAudit.data.grade||'—', M+6, 128);
+  const date = new Date(currentAudit.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
+  const kw = currentAudit.keyword || null;
 
-  doc.addPage(); y = 20;
-  section('Resumo executivo');
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-  const sl = doc.splitTextToSize(currentAudit.data.summary||'', W-M*2-6);
-  doc.text(sl, M+3, y); y += sl.length*4+10;
+  // ── COVER PAGE ─────────────────────────────────────────────
+  doc.setFillColor(10,10,10); doc.rect(0,0,W,297,'F');
 
-  section('Problemas encontrados');
-  (currentAudit.data.issues||[]).forEach(iss => {
-    check(9);
-    const c = iss.severity==='critical'?[255,43,0]:iss.severity==='warning'?[180,83,9]:[22,101,52];
-    doc.setFillColor(...c); doc.rect(M, y, 18, 6, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(255,255,255);
-    doc.text(iss.severity==='critical'?'ERRO':iss.severity==='warning'?'AVISO':'OK', M+1, y+4.5);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-    const lines = doc.splitTextToSize(iss.text, W-M*2-24);
-    doc.text(lines, M+22, y+4); y += 6+(lines.length-1)*4+4;
+  // Yellow accent bar
+  doc.setFillColor(232,255,0); doc.rect(0,0,8,297,'F');
+
+  // Title
+  doc.setFont('helvetica','bold'); doc.setFontSize(32); doc.setTextColor(232,255,0);
+  doc.text('SEO', M+4, 52);
+  doc.setFontSize(32); doc.setTextColor(255,255,255);
+  doc.text('AUDIT', M+4, 66);
+  doc.setFontSize(10); doc.setTextColor(100,100,100);
+  doc.text('RELATÓRIO DE AUDITORIA', M+4, 78);
+
+  // Divider
+  doc.setDrawColor(40,40,40); doc.setLineWidth(0.5); doc.line(M+4, 84, W-M, 84);
+
+  // URL & date
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
+  doc.text('URL AUDITADO', M+4, 96);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+  const urlLines = doc.splitTextToSize(currentAudit.url, W-M*2-8);
+  doc.text(urlLines, M+4, 103);
+
+  if (kw) {
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
+    doc.text('KEYWORD ALVO', M+4, 118);
+    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(232,255,0);
+    doc.text(kw, M+4, 125);
+  }
+
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
+  doc.text('DATA', M+4, kw ? 136 : 120);
+  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
+  doc.text(date, M+4, kw ? 143 : 127);
+
+  // Score box
+  doc.setFillColor(...scCol); doc.rect(M+4, 160, 60, 44, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(36); doc.setTextColor(255,255,255);
+  doc.text(String(sc), M+12, 188);
+  doc.setFontSize(14); doc.text('/100', M+36, 188);
+  doc.setFontSize(9); doc.text((currentAudit.data.grade||'').toUpperCase(), M+8, 197);
+
+  // Stats boxes
+  const stats = [
+    { label:'CRÍTICOS', val: (currentAudit.data.issues||[]).filter(i=>i.severity==='critical').length, col:[255,43,0] },
+    { label:'AVISOS', val: (currentAudit.data.issues||[]).filter(i=>i.severity==='warning').length, col:[180,83,9] },
+    { label:'OK', val: [...(currentAudit.data.meta_checks||[]),...(currentAudit.data.content_checks||[]),...(currentAudit.data.tech_checks||[])].filter(c=>c.pass).length, col:[22,101,52] }
+  ];
+  stats.forEach((s,i) => {
+    const bx = M+4 + 68 + i*32;
+    doc.setFillColor(20,20,20); doc.rect(bx, 160, 28, 44, 'F');
+    doc.setFillColor(...s.col); doc.rect(bx, 160, 28, 4, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(255,255,255);
+    doc.text(String(s.val), bx+6, 182);
+    doc.setFontSize(7); doc.setTextColor(120,120,120);
+    doc.text(s.label, bx+4, 197);
   });
 
-  y += 4; section('Recomendações prioritárias');
+  // Footer cover
+  doc.setFillColor(20,20,20); doc.rect(0,270,W,27,'F');
+  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+  doc.text('Gerado por SEO Audit Dashboard · pintofbmiguel-bit.github.io/seo-audit-dashboard', M+4, 282);
+  doc.text('Análise baseada no HTML da página — valida resultados críticos com Google Search Console', M+4, 289);
+
+  // ── PAGE 2: RESUMO + KEYWORD ───────────────────────────────
+  addPage();
+  doc.setFillColor(245,244,239); doc.rect(0,0,W,297,'F');
+  doc.setFillColor(232,255,0); doc.rect(0,0,4,297,'F');
+
+  section('Resumo executivo', true);
+  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
+  const sumLines = doc.splitTextToSize(currentAudit.data.summary||'', W-M*2-6);
+  doc.text(sumLines, M, y); y += sumLines.length*5.2+8;
+
+  if (kw && currentAudit.data.keyword_analysis) {
+    checkY(20);
+    section(`Análise de keyword: "${kw}"`, false);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
+    const kwLines = doc.splitTextToSize(currentAudit.data.keyword_analysis, W-M*2-6);
+    doc.text(kwLines, M, y); y += kwLines.length*5.2+8;
+  }
+
+  // ── CHECKS ────────────────────────────────────────────────
+  checkY(20);
+  section('Verificações técnicas', false);
+
+  const allChecks = [
+    { title:'Meta tags', items: currentAudit.data.meta_checks||[] },
+    { title:'Conteúdo', items: currentAudit.data.content_checks||[] },
+    { title:'Boas práticas', items: currentAudit.data.tech_checks||[] }
+  ];
+
+  allChecks.forEach(group => {
+    checkY(14);
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
+    doc.text('— ' + group.title.toUpperCase(), M, y); y += 6;
+    group.items.forEach(c => {
+      checkY(8);
+      const col = c.pass ? [22,101,52] : [255,43,0];
+      doc.setFillColor(...col); doc.rect(M, y, 5, 5, 'F');
+      doc.setFont('helvetica', c.pass?'normal':'bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
+      doc.text(c.label, M+8, y+4);
+      if (c.value) {
+        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
+        doc.text(String(c.value), W-M, y+4, {align:'right'});
+      }
+      y += 7;
+    });
+    y += 4;
+  });
+
+  // ── ISSUES ────────────────────────────────────────────────
+  checkY(20);
+  section('Problemas encontrados', false);
+  (currentAudit.data.issues||[]).forEach(iss => {
+    checkY(12);
+    const c = iss.severity==='critical'?[255,43,0]:iss.severity==='warning'?[180,83,9]:[22,101,52];
+    const label = iss.severity==='critical'?'ERRO':iss.severity==='warning'?'AVISO':'OK';
+    doc.setFillColor(...c); doc.rect(M, y, 16, 6, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    doc.text(label, M+1.5, y+4.3);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,40,40);
+    const lines = doc.splitTextToSize(iss.text, W-M*2-22);
+    doc.text(lines, M+20, y+4); y += Math.max(8, lines.length*5)+3;
+  });
+
+  // ── RECOMMENDATIONS ────────────────────────────────────────
+  checkY(20);
+  section('Recomendações prioritárias', true);
   (currentAudit.data.recommendations||[]).forEach((r,i) => {
-    check(12);
+    checkY(14);
+    const rText = typeof r === 'string' ? r : r.text;
+    const priority = r.priority || 'medium';
+    const pCol = priority==='high'?[255,43,0]:priority==='medium'?[180,83,9]:[22,101,52];
+
     doc.setFillColor(10,10,10); doc.rect(M, y, 8, 8, 'F');
     doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
-    doc.text(String(i+1), M+2, y+5.5);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
-    const lines = doc.splitTextToSize(r.text, W-M*2-14);
-    doc.text(lines, M+12, y+5); y += 8+(lines.length-1)*4+4;
+    doc.text(String(i+1), M+2.5, y+5.5);
+
+    doc.setFillColor(...pCol); doc.rect(M+10, y+1, 14, 5, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(255,255,255);
+    doc.text(priority.toUpperCase(), M+11, y+4.8);
+
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,40,40);
+    const lines = doc.splitTextToSize(rText, W-M*2-30);
+    doc.text(lines, M+27, y+5); y += Math.max(10, lines.length*5)+4;
   });
 
+  // ── LIMITATIONS ────────────────────────────────────────────
+  checkY(20);
+  section('Âmbito da análise e limitações', false);
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(22,101,52);
+  doc.text('O QUE FOI ANALISADO', M, y); y += 5;
+  const analysed = ['Meta title e description','Estrutura de headings (H1–H3)','Imagens sem alt text','Links internos e externos','Canonical, viewport, schema markup','Open Graph e redes sociais', kw?`Relevância para keyword "${kw}"`:null].filter(Boolean);
+  analysed.forEach(item => {
+    checkY(6); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
+    doc.text('✓  ' + item, M+2, y); y += 5.5;
+  });
+  y += 4;
+  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(255,43,0);
+  doc.text('O QUE NÃO FOI ANALISADO', M, y); y += 5;
+  ['Velocidade / Core Web Vitals','Backlinks e autoridade de domínio','Indexação e robots.txt','Redirects e erros 404','Dados reais do Google Search Console','Outras páginas do site'].forEach(item => {
+    checkY(6); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
+    doc.text('✗  ' + item, M+2, y); y += 5.5;
+  });
+  y += 6;
+  doc.setDrawColor(220,218,210); doc.setLineWidth(0.3); doc.line(M, y, W-M, y); y += 6;
+  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(120,120,120);
+  const disclaimer = 'Esta análise é baseada exclusivamente no HTML desta página e deve ser complementada com dados do Google Search Console, PageSpeed Insights e uma auditoria técnica completa.';
+  const dLines = doc.splitTextToSize(disclaimer, W-M*2);
+  doc.text(dLines, M, y);
+
+  // ── FOOTER ALL PAGES ───────────────────────────────────────
   const pc = doc.getNumberOfPages();
-  for (let p=2;p<=pc;p++) {
+  for (let p=1;p<=pc;p++) {
     doc.setPage(p);
-    doc.setFillColor(10,10,10); doc.rect(0,285,W,12,'F');
-    doc.setTextColor(70,70,70); doc.setFont('helvetica','normal'); doc.setFontSize(8);
-    doc.text('SEO_AUDIT — Dashboard', M, 291);
-    doc.text(`${p}/${pc}`, W-M, 291, {align:'right'});
+    if (p > 1) {
+      doc.setFillColor(10,10,10); doc.rect(0,286,W,11,'F');
+      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
+      doc.text('SEO AUDIT — ' + currentAudit.url, M, 292);
+      doc.text(`${p} / ${pc}`, W-M, 292, {align:'right'});
+    }
   }
-  doc.save('seo-audit-' + new Date().toISOString().split('T')[0] + '.pdf');
+
+  doc.save(`seo-audit-${currentAudit.url.replace(/https?:\/\//,'').replace(/[^a-z0-9]/gi,'-').substring(0,30)}-${new Date().toISOString().split('T')[0]}.pdf`);
   showToast('PDF exportado');
 }
 
