@@ -158,7 +158,30 @@ a,button{cursor:crosshair}
 .summary-panel{border:var(--border);margin-top:24px}
 .summary-inner{padding:20px;font-size:12px;line-height:1.9;color:#333;border-left:6px solid var(--yellow)}
 
-/* Limits panel */
+/* Category scores */
+.cat-scores{border:var(--border);border-top:none;display:grid;grid-template-columns:repeat(3,1fr)}
+.cat-score-cell{padding:16px 20px;border-right:var(--border);display:flex;flex-direction:column;gap:8px}
+.cat-score-cell:last-child{border-right:none}
+.cat-score-label{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888}
+.cat-score-val{font-family:var(--sans);font-size:22px;font-weight:900;line-height:1}
+.cat-score-bar-bg{height:6px;background:#E4E2DB;width:100%}
+.cat-score-bar{height:6px;transition:width .4s ease}
+
+/* Keyword panel */
+.kw-panel-body{border:var(--border);border-top:none;padding:20px;display:grid;grid-template-columns:1fr 1fr;gap:0}
+.kw-checks{border-right:var(--border);padding-right:20px}
+.kw-checks:last-child{border-right:none;padding-right:0;padding-left:20px}
+.kw-check-title{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888;margin-bottom:10px}
+.kw-check-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #E4E2DB;font-size:11px}
+.kw-check-row:last-child{border-bottom:none}
+.kw-dot{width:10px;height:10px;flex-shrink:0;border:2px solid}
+.kw-dot.pass{background:var(--black);border-color:var(--black)}
+.kw-dot.fail{background:var(--red);border-color:var(--red)}
+.kw-dot.warn{background:#B45309;border-color:#B45309}
+.kw-lbl{flex:1;color:#333}
+.kw-val{font-size:10px;color:#888;font-family:var(--mono)}
+
+
 .limits-panel{border:var(--border);border-top:none;background:#FAFAF5}
 .limits-head{padding:10px 16px;border-bottom:var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px;color:#555}
 .limits-body{display:grid;grid-template-columns:1fr 1fr;border-bottom:var(--border)}
@@ -347,6 +370,9 @@ a,button{cursor:crosshair}
           </div>
         </div>
 
+        <!-- Category scores -->
+        <div class="cat-scores" id="cat-scores">
+
         <!-- Actions -->
         <div class="actions-bar">
           <button class="btn btn-primary" onclick="saveAudit()">
@@ -399,6 +425,17 @@ a,button{cursor:crosshair}
             <span class="badge b-accent">Claude</span>
           </div>
           <div class="summary-inner" id="ai-summary"></div>
+        </div>
+
+        </div>
+
+        <!-- Keyword analysis panel -->
+        <div id="kw-panel" style="display:none">
+          <div class="panel-head" style="border:var(--border);border-bottom:none;margin-top:24px;background:var(--black)">
+            <span class="panel-head-title" id="kw-panel-title">// Keyword analysis</span>
+            <span class="badge b-accent">IA</span>
+          </div>
+          <div class="kw-panel-body" id="kw-panel-body"></div>
         </div>
 
         <!-- Checks grid -->
@@ -538,11 +575,11 @@ async function sbSave(record) {
 }
 
 // ── Pre-analysis ──────────────────────────────────────────────
-function preAnalyse(html) {
+function preAnalyse(html, keyword) {
   const p = new DOMParser().parseFromString(html, 'text/html');
   const title = p.querySelector('title')?.textContent?.trim() || '';
   const metaDesc = p.querySelector('meta[name="description"]')?.getAttribute('content')?.trim() || '';
-  const h1s = [...p.querySelectorAll('h1')].map(h => h.textContent.trim().substring(0, 50));
+  const h1s = [...p.querySelectorAll('h1')].map(h => h.textContent.trim().substring(0, 80));
   const allImgs = p.querySelectorAll('img');
   const imgsNoAlt = [...allImgs].filter(i => !i.getAttribute('alt')).length;
   const allLinks = p.querySelectorAll('a[href]');
@@ -553,6 +590,49 @@ function preAnalyse(html) {
   const freq = {};
   words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
   const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+
+  // OG tags
+  const ogTitle = p.querySelector('meta[property="og:title"]')?.getAttribute('content') || '';
+  const ogDesc = p.querySelector('meta[property="og:description"]')?.getAttribute('content') || '';
+  const ogImage = p.querySelector('meta[property="og:image"]')?.getAttribute('content') || '';
+
+  // Keyword analysis from HTML
+  let kwData = null;
+  if (keyword) {
+    const kw = keyword.toLowerCase().trim();
+    const kwWords = kw.split(/\s+/);
+    const bodyLower = bodyText.toLowerCase();
+    const titleLower = title.toLowerCase();
+    const descLower = metaDesc.toLowerCase();
+    const h1Lower = h1s.map(h => h.toLowerCase()).join(' ');
+    const urlLower = (document.getElementById('audit-url')?.value || '').toLowerCase();
+
+    // Count occurrences
+    let count = 0;
+    let idx = bodyLower.indexOf(kw);
+    while (idx !== -1) { count++; idx = bodyLower.indexOf(kw, idx + 1); }
+
+    // Density
+    const density = words.length > 0 ? ((count / words.length) * 100).toFixed(1) : 0;
+
+    // First paragraph check
+    const firstP = p.querySelector('p')?.textContent?.toLowerCase() || '';
+
+    // Alt tags with keyword
+    const imgsWithKwAlt = [...allImgs].filter(i => (i.getAttribute('alt')||'').toLowerCase().includes(kw)).length;
+
+    kwData = {
+      inTitle: titleLower.includes(kw),
+      inH1: h1Lower.includes(kw),
+      inMetaDesc: descLower.includes(kw),
+      inUrl: urlLower.includes(kw.replace(/\s+/g,'-')) || urlLower.includes(kw.replace(/\s+/g,'+')),
+      inFirstP: firstP.includes(kw),
+      inAlt: imgsWithKwAlt > 0,
+      count, density, imgsWithKwAlt,
+      prominence: titleLower.startsWith(kw) || h1Lower.startsWith(kw)
+    };
+  }
+
   return {
     title, titleLen: title.length, metaDesc, metaDescLen: metaDesc.length,
     h1Count: h1s.length, h1s: h1s.slice(0, 2),
@@ -561,7 +641,8 @@ function preAnalyse(html) {
     wordCount: words.length, topWord: sorted[0]?.[0] || '—', topWordCount: sorted[0]?.[1] || 0,
     hasCanonical: !!p.querySelector('link[rel="canonical"]'),
     hasViewport: !!p.querySelector('meta[name="viewport"]'),
-    hasSchema: html.includes('application/ld+json')
+    hasSchema: html.includes('application/ld+json'),
+    ogTitle, ogDesc, ogImage, kwData
   };
 }
 
@@ -647,7 +728,7 @@ async function runAudit() {
   document.getElementById('results').style.display = 'none';
   document.getElementById('audit-empty').style.display = 'none';
 
-  const local = preAnalyse(html);
+  const local = preAnalyse(html, keyword);
 
   // Show keyword line in limits panel if keyword provided
   if (keyword) document.getElementById('limits-keyword-line').style.display = '';
@@ -771,10 +852,88 @@ function renderResults(data) {
   document.getElementById('stat-warn').textContent = warn;
   document.getElementById('stat-pass').textContent = pass;
 
+  // Category scores
+  const catScore = (checks) => {
+    const t = (checks||[]).length; if (!t) return 0;
+    return Math.round((checks||[]).filter(c => c.pass).length / t * 100);
+  };
+  const cats = [
+    { label:'Meta tags', score: catScore(data.meta_checks) },
+    { label:'Conteúdo', score: catScore(data.content_checks) },
+    { label:'Técnico', score: catScore(data.tech_checks) }
+  ];
+  document.getElementById('cat-scores').innerHTML = cats.map(c => {
+    const col = c.score >= 70 ? '#166534' : c.score >= 40 ? '#B45309' : 'var(--red)';
+    return `<div class="cat-score-cell">
+      <div class="cat-score-label">${c.label}</div>
+      <div class="cat-score-val" style="color:${col}">${c.score}<span style="font-size:13px;color:#aaa">%</span></div>
+      <div class="cat-score-bar-bg"><div class="cat-score-bar" style="width:${c.score}%;background:${col}"></div></div>
+    </div>`;
+  }).join('');
+
   document.getElementById('ai-summary').innerHTML = data.summary || '';
   if (data.keyword_analysis) {
     const kw = currentAudit?.keyword || '';
     document.getElementById('ai-summary').innerHTML += `<div style="margin-top:14px;padding-top:14px;border-top:2px solid var(--yellow)"><span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888">// Keyword: "${kw}"</span><br><br>${data.keyword_analysis}</div>`;
+  }
+
+  // Keyword panel from local HTML analysis
+  const kwData = currentAudit?.local?.kwData;
+  const kw = currentAudit?.keyword;
+  if (kwData && kw) {
+    document.getElementById('kw-panel').style.display = '';
+    document.getElementById('kw-panel-title').textContent = `// Keyword: "${kw}"`;
+    const checks = [
+      { label:'Keyword no título', pass: kwData.inTitle, val: kwData.inTitle ? '✓ presente' : '✗ ausente' },
+      { label:'Keyword no H1', pass: kwData.inH1, val: kwData.inH1 ? '✓ presente' : '✗ ausente' },
+      { label:'Keyword na meta description', pass: kwData.inMetaDesc, val: kwData.inMetaDesc ? '✓ presente' : '✗ ausente' },
+      { label:'Keyword no URL', pass: kwData.inUrl, val: kwData.inUrl ? '✓ presente' : '✗ ausente' },
+      { label:'Keyword no 1º parágrafo', pass: kwData.inFirstP, val: kwData.inFirstP ? '✓ presente' : '✗ ausente' },
+      { label:'Keyword em alt de imagem', pass: kwData.inAlt, val: kwData.inAlt ? `✓ ${kwData.imgsWithKwAlt} img` : '✗ ausente' },
+    ];
+    const density = parseFloat(kwData.density);
+    const densityOk = density >= 0.5 && density <= 3;
+    const densityWarn = density > 3;
+    document.getElementById('kw-panel-body').innerHTML = `
+      <div class="kw-checks">
+        <div class="kw-check-title">Presença da keyword</div>
+        ${checks.map(c => `<div class="kw-check-row">
+          <div class="kw-dot ${c.pass?'pass':'fail'}"></div>
+          <span class="kw-lbl">${c.label}</span>
+          <span class="kw-val">${c.val}</span>
+        </div>`).join('')}
+      </div>
+      <div class="kw-checks">
+        <div class="kw-check-title">Métricas</div>
+        <div class="kw-check-row">
+          <div class="kw-dot ${densityOk?'pass':densityWarn?'fail':'warn'}"></div>
+          <span class="kw-lbl">Densidade</span>
+          <span class="kw-val">${kwData.density}%${density<0.5?' — baixa':density>3?' — demasiado alta':' — óptima'}</span>
+        </div>
+        <div class="kw-check-row">
+          <div class="kw-dot pass"></div>
+          <span class="kw-lbl">Ocorrências no texto</span>
+          <span class="kw-val">${kwData.count}×</span>
+        </div>
+        <div class="kw-check-row">
+          <div class="kw-dot ${kwData.prominence?'pass':'warn'}"></div>
+          <span class="kw-lbl">Keyword no início (título/H1)</span>
+          <span class="kw-val">${kwData.prominence?'✓ sim':'— não'}</span>
+        </div>
+        <div class="kw-check-row">
+          <div class="kw-dot pass"></div>
+          <span class="kw-lbl">Total de palavras na página</span>
+          <span class="kw-val">${currentAudit?.local?.wordCount || '—'}</span>
+        </div>
+        <div style="margin-top:14px;padding:10px 12px;background:#F0EFE8;border:1px solid #E4E2DB;font-size:10px;color:#666;line-height:1.7">
+          <strong style="font-size:9px;text-transform:uppercase;letter-spacing:.08em">Guia de densidade:</strong><br>
+          0.5–1% — natural e recomendado<br>
+          1–3% — aceitável para páginas de produto/serviço<br>
+          >3% — risco de keyword stuffing
+        </div>
+      </div>`;
+  } else {
+    document.getElementById('kw-panel').style.display = 'none';
   }
 
   const renderChecks = (id, checks, badgeId) => {
