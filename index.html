@@ -622,6 +622,13 @@ updateCount();
   } catch(e) { console.error('Extension bridge error:', e); }
 })();
 
+// ── Security — sanitize user data ────────────────────────────
+function esc(str) {
+  const d = document.createElement('div');
+  d.textContent = String(str || '');
+  return d.innerHTML;
+}
+
 // ── Nav ────────────────────────────────────────────────────────
 function showView(name, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
@@ -862,10 +869,23 @@ Responde APENAS com JSON válido:
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
+    if (res.status === 429) {
+      const err = await res.json().catch(() => ({}));
+      const mins = err.retry_after ? ` Tenta novamente em ${Math.ceil(err.retry_after/60)} min.` : '';
+      showToast(`Limite de 10 auditorias/hora atingido.${mins}`);
+      throw new Error('rate_limit');
+    }
     const json = await res.json();
     const raw = json.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
     data = JSON.parse(raw);
-  } catch {
+  } catch (e) {
+    if (e.message === 'rate_limit') {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9L12 12"/></svg> Auditar agora';
+      setStatus('Limite atingido', false);
+      document.getElementById('audit-empty').style.display = '';
+      return;
+    }
     data = buildFallback(local);
   }
 
@@ -964,10 +984,13 @@ function renderResults(data) {
     </div>`;
   }).join('');
 
-  document.getElementById('ai-summary').innerHTML = data.summary || '';
+  document.getElementById('ai-summary').textContent = data.summary || '';
   if (data.keyword_analysis) {
     const kw = currentAudit?.keyword || '';
-    document.getElementById('ai-summary').innerHTML += `<div style="margin-top:14px;padding-top:14px;border-top:2px solid var(--yellow)"><span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888">// Keyword: "${kw}"</span><br><br>${data.keyword_analysis}</div>`;
+    const kwDiv = document.createElement('div');
+    kwDiv.style.cssText = 'margin-top:14px;padding-top:14px;border-top:2px solid var(--yellow)';
+    kwDiv.innerHTML = `<span style="font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888">// Keyword: "${esc(kw)}"</span><br><br>${esc(data.keyword_analysis)}`;
+    document.getElementById('ai-summary').appendChild(kwDiv);
   }
 
   // Keyword panel from local HTML analysis
@@ -992,8 +1015,8 @@ function renderResults(data) {
         <div class="kw-check-title">Presença da keyword</div>
         ${checks.map(c => `<div class="kw-check-row">
           <div class="kw-dot ${c.pass?'pass':'fail'}"></div>
-          <span class="kw-lbl">${c.label}</span>
-          <span class="kw-val">${c.val}</span>
+          <span class="kw-lbl">${esc(c.label)}</span>
+          <span class="kw-val">${esc(c.val)}</span>
         </div>`).join('')}
       </div>
       <div class="kw-checks">
@@ -1001,12 +1024,12 @@ function renderResults(data) {
         <div class="kw-check-row">
           <div class="kw-dot ${densityOk?'pass':densityWarn?'fail':'warn'}"></div>
           <span class="kw-lbl">Densidade</span>
-          <span class="kw-val">${kwData.density}%${density<0.5?' — baixa':density>3?' — demasiado alta':' — óptima'}</span>
+          <span class="kw-val">${esc(kwData.density)}%${density<0.5?' — baixa':density>3?' — demasiado alta':' — óptima'}</span>
         </div>
         <div class="kw-check-row">
           <div class="kw-dot pass"></div>
           <span class="kw-lbl">Ocorrências no texto</span>
-          <span class="kw-val">${kwData.count}×</span>
+          <span class="kw-val">${esc(String(kwData.count))}×</span>
         </div>
         <div class="kw-check-row">
           <div class="kw-dot ${kwData.prominence?'pass':'warn'}"></div>
@@ -1016,7 +1039,7 @@ function renderResults(data) {
         <div class="kw-check-row">
           <div class="kw-dot pass"></div>
           <span class="kw-lbl">Total de palavras na página</span>
-          <span class="kw-val">${currentAudit?.local?.wordCount || '—'}</span>
+          <span class="kw-val">${esc(String(currentAudit?.local?.wordCount || '—'))}</span>
         </div>
         <div style="margin-top:14px;padding:10px 12px;background:#F0EFE8;border:1px solid #E4E2DB;font-size:10px;color:#666;line-height:1.7">
           <strong style="font-size:9px;text-transform:uppercase;letter-spacing:.08em">Guia de densidade:</strong><br>
@@ -1037,8 +1060,8 @@ function renderResults(data) {
     document.getElementById(id).innerHTML = (checks||[]).map(c => `
       <div class="check-row ${c.pass?'pass':'fail'}">
         <div class="check-mark">${c.pass?'✓':'✕'}</div>
-        <span class="check-lbl">${c.label}</span>
-        <span class="check-val">${c.value||''}</span>
+        <span class="check-lbl">${esc(c.label)}</span>
+        <span class="check-val">${esc(c.value||'')}</span>
       </div>`).join('');
   };
   renderChecks('check-meta', data.meta_checks, 'badge-meta');
@@ -1048,15 +1071,15 @@ function renderResults(data) {
   const sevLabel = {critical:'ERRO',warning:'AVISO',ok:'OK'};
   document.getElementById('badge-issues').textContent = `${crit} erros`;
   document.getElementById('issues-list').innerHTML = (data.issues||[]).map(iss => `
-    <div class="issue ${iss.severity}">
-      <span class="issue-flag">${sevLabel[iss.severity]||'?'}</span>
-      <span>${iss.text}</span>
+    <div class="issue ${esc(iss.severity)}">
+      <span class="issue-flag">${esc(sevLabel[iss.severity]||'?')}</span>
+      <span>${esc(iss.text)}</span>
     </div>`).join('');
 
   document.getElementById('rec-list').innerHTML = (data.recommendations||[]).map((r,i) => `
     <div class="rec-item">
       <span class="rec-num">${String(i+1).padStart(2,'0')}</span>
-      <span class="rec-text">${typeof r === 'string' ? r : r.text}</span>
+      <span class="rec-text">${esc(typeof r === 'string' ? r : r.text)}</span>
     </div>`).join('');
 
   // SERP Preview
@@ -1071,7 +1094,7 @@ function renderResults(data) {
       <div class="alt-img-row">
         <div class="alt-img-num">${i+1}</div>
         <div class="alt-img-info">
-          <div class="alt-img-src">${src}</div>
+          <div class="alt-img-src">${esc(src)}</div>
           <div class="alt-img-fix">✗ Alt text ausente — adiciona descrição da imagem</div>
         </div>
       </div>`).join('');
@@ -1167,8 +1190,8 @@ function renderHist(items) {
     return `<div class="hist-card" onclick="loadAudit(${i})">
       <div class="hist-score-big" style="color:${col}">${sc}</div>
       <div>
-        <div class="hist-url">${a.url}</div>
-        <div class="hist-meta">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})} — ${a.data?.grade||'—'}</div>
+        <div class="hist-url">${esc(a.url)}</div>
+        <div class="hist-meta">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})} — ${esc(a.data?.grade||'—')}</div>
       </div>
       <div class="hist-chips">
         <span class="badge b-err">${crit} ERROS</span>
