@@ -423,6 +423,31 @@ document.getElementById('sb-url').value = sbUrl;
 document.getElementById('sb-key').value = sbKey;
 updateCount();
 
+// ── Extension bridge ───────────────────────────────────────────
+if (typeof chrome !== 'undefined' && chrome.storage) {
+  chrome.storage.local.get('seo_pending', (result) => {
+    if (!result.seo_pending) return;
+    const { html, url, ts } = result.seo_pending;
+    if (Date.now() - ts > 30000) return;
+    chrome.storage.local.remove('seo_pending');
+    const urlInput = document.getElementById('audit-url');
+    const htmlInput = document.getElementById('audit-html');
+    const statusEl = document.getElementById('fetch-status');
+    const fallbackBody = document.getElementById('fallback-body');
+    const fallbackToggle = document.getElementById('fallback-toggle');
+    if (urlInput) urlInput.value = url;
+    if (htmlInput) htmlInput.value = html;
+    if (fallbackBody) fallbackBody.style.display = 'block';
+    if (fallbackToggle) fallbackToggle.classList.add('open');
+    if (statusEl) {
+      const kb = Math.round(html.length / 1024);
+      statusEl.className = 'field-hint fetch-ok';
+      statusEl.textContent = `// ✓ HTML injectado pela extensão — ${kb}KB. Clica "Auditar agora".`;
+    }
+    showToast('Página carregada pela extensão');
+  });
+}
+
 // ── Nav ────────────────────────────────────────────────────────
 function showView(name, btn) {
   document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
