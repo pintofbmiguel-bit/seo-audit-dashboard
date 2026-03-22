@@ -242,7 +242,25 @@ a,button{cursor:crosshair}
 .b-err{background:var(--red);border-color:var(--red);color:var(--white)}
 .b-accent{background:var(--black);border-color:var(--black);color:var(--yellow)}
 
-/* History */
+/* Login screen */
+.login-screen{position:fixed;inset:0;background:var(--black);display:flex;align-items:center;justify-content:center;z-index:9999}
+.login-screen.hidden{display:none}
+.login-box{width:360px;border:3px solid var(--yellow)}
+.login-head{background:var(--yellow);padding:20px 24px;display:flex;align-items:center;gap:12px}
+.login-logo{width:32px;height:32px;background:var(--black);display:flex;align-items:center;justify-content:center}
+.login-logo svg{width:16px;height:16px;stroke:var(--yellow)}
+.login-title{font-family:var(--sans);font-size:13px;font-weight:900;color:var(--black);letter-spacing:.04em}
+.login-body{padding:28px 24px;background:#111}
+.login-label{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#555;margin-bottom:8px;display:block}
+.login-input{width:100%;padding:12px 14px;background:#0a0a0a;border:2px solid #333;font-family:var(--mono);font-size:14px;color:var(--white);outline:none;letter-spacing:.04em;transition:border-color .15s}
+.login-input:focus{border-color:var(--yellow)}
+.login-input::placeholder{color:#333}
+.login-btn{width:100%;margin-top:16px;padding:13px;background:var(--yellow);color:var(--black);border:none;font-family:var(--sans);font-size:11px;font-weight:900;cursor:pointer;letter-spacing:.08em;text-transform:uppercase;transition:opacity .1s}
+.login-btn:hover{opacity:.85}
+.login-error{margin-top:10px;font-size:10px;color:var(--red);letter-spacing:.04em;text-align:center;display:none;font-family:var(--mono)}
+.login-error.show{display:block}
+.login-foot{padding:12px 24px;border-top:2px solid #1a1a1a;font-size:9px;color:#333;letter-spacing:.06em;text-transform:uppercase;text-align:center}
+
 .hist-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
 .hist-search{padding:10px 14px;border:var(--border);font-family:var(--mono);font-size:12px;color:var(--black);background:var(--white);outline:none;flex:1}
 .hist-search:focus{outline:3px solid var(--yellow);outline-offset:-3px}
@@ -275,7 +293,29 @@ a,button{cursor:crosshair}
 </head>
 <body>
 <div class="toast" id="toast"></div>
-<div class="shell">
+
+<!-- Login screen -->
+<div class="login-screen" id="login-screen">
+  <div class="login-box">
+    <div class="login-head">
+      <div class="login-logo">
+        <svg viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12l4-4 3 3 4-6"/><circle cx="8" cy="4" r="1.5"/>
+        </svg>
+      </div>
+      <div class="login-title">SEO_AUDIT — Dashboard</div>
+    </div>
+    <div class="login-body">
+      <label class="login-label">Password de acesso</label>
+      <input class="login-input" type="password" id="login-input" placeholder="••••••••" onkeydown="if(event.key==='Enter')checkLogin()">
+      <button class="login-btn" onclick="checkLogin()">▶ Entrar</button>
+      <div class="login-error" id="login-error">// Password incorrecta — tenta novamente</div>
+    </div>
+    <div class="login-foot">Acesso restrito — Morais Leitão SEO</div>
+  </div>
+</div>
+
+<div class="shell" id="shell" style="display:none">
 
 <!-- Sidebar -->
 <aside class="sidebar">
@@ -578,6 +618,40 @@ a,button{cursor:crosshair}
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
+// ── Login ──────────────────────────────────────────────────────
+// Password é guardada como hash SHA-256 — nunca em plaintext
+// Para mudar a password: gera um novo hash em https://emn178.github.io/online-tools/sha256.html
+// Password actual: seoaudit2026
+const PASSWORD_HASH = '139affc2894084c73724f16bb32e04dc744f2afa1fa42e84d4296957de6caa7c';
+
+async function hashPassword(pw) {
+  const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
+  return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2,'0')).join('');
+}
+
+async function checkLogin() {
+  const pw = document.getElementById('login-input').value;
+  const hash = await hashPassword(pw);
+  if (hash === PASSWORD_HASH) {
+    sessionStorage.setItem('seo-auth', '1');
+    document.getElementById('login-screen').classList.add('hidden');
+    document.getElementById('shell').style.display = '';
+    initDashboard();
+  } else {
+    const err = document.getElementById('login-error');
+    err.classList.add('show');
+    document.getElementById('login-input').value = '';
+    document.getElementById('login-input').focus();
+    setTimeout(() => err.classList.remove('show'), 3000);
+  }
+}
+
+// Check if already authenticated this session
+if (sessionStorage.getItem('seo-auth') === '1') {
+  document.getElementById('login-screen').classList.add('hidden');
+  document.getElementById('shell').style.display = '';
+}
+
 // ── State ──────────────────────────────────────────────────────
 let audits = JSON.parse(localStorage.getItem('seo-audits-b') || '[]');
 let filteredAudits = [...audits];
@@ -585,15 +659,23 @@ let currentAudit = null;
 let sbUrl = localStorage.getItem('seo-sburl') || '';
 let sbKey = localStorage.getItem('seo-sbkey') || '';
 let tt; // toast timer
-document.getElementById('sb-url').value = sbUrl;
-document.getElementById('sb-key').value = sbKey;
-// Always start clean — results only show after an audit runs
-document.getElementById('results').classList.add('results-hidden');document.getElementById('results').style.display = 'none';
-document.getElementById('audit-empty').style.display = '';
-updateCount();
+
+function initDashboard() {
+  document.getElementById('sb-url').value = sbUrl;
+  document.getElementById('sb-key').value = sbKey;
+  document.getElementById('results').classList.add('results-hidden');
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('audit-empty').style.display = '';
+  updateCount();
+  // Run extension bridge after login
+  checkExtBridge();
+}
+
+// If already logged in, init immediately
+if (sessionStorage.getItem('seo-auth') === '1') initDashboard();
 
 // ── Extension bridge ───────────────────────────────────────────
-(function() {
+function checkExtBridge() {
   const hash = location.hash;
   if (!hash.startsWith('#ext=')) return;
   try {
@@ -601,9 +683,7 @@ updateCount();
     const payload = JSON.parse(decodeURIComponent(escape(atob(encoded))));
     const { html, url } = payload;
     if (!html) return;
-    // Clear hash from URL
     history.replaceState(null, '', location.pathname);
-    // Fill fields
     const urlInput = document.getElementById('audit-url');
     const htmlInput = document.getElementById('audit-html');
     const statusEl = document.getElementById('fetch-status');
@@ -620,7 +700,7 @@ updateCount();
     }
     showToast('Página carregada pela extensão');
   } catch(e) { console.error('Extension bridge error:', e); }
-})();
+}
 
 // ── Security — sanitize user data ────────────────────────────
 function esc(str) {
