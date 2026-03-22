@@ -546,7 +546,12 @@ function showView(name, btn) {
   document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
   document.getElementById('view-' + name).classList.add('active');
   btn.classList.add('active');
-  if (name === 'history') renderHist(filteredAudits);
+  if (name === 'history') {
+    renderHist(filteredAudits);
+    document.getElementById('audit-empty').style.display = 'none';
+  } else {
+    document.getElementById('audit-empty').style.display = '';
+  }
 }
 
 function setStatus(msg, live = true) {
