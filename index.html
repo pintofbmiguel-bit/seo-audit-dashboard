@@ -505,6 +505,7 @@ let filteredAudits = [...audits];
 let currentAudit = null;
 let sbUrl = localStorage.getItem('seo-sburl') || '';
 let sbKey = localStorage.getItem('seo-sbkey') || '';
+let tt; // toast timer
 document.getElementById('sb-url').value = sbUrl;
 document.getElementById('sb-key').value = sbKey;
 updateCount();
@@ -765,7 +766,7 @@ Responde APENAS com JSON válido:
 
   let data;
   try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
+    const res = await fetch('https://seo-audit-proxy.pintofbmiguel.workers.dev', {
       method: 'POST', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
@@ -1252,7 +1253,6 @@ function exportPDF() {
 }
 
 // ── Toast ─────────────────────────────────────────────────────
-let tt;
 function showToast(m) {
   const t = document.getElementById('toast');
   t.textContent = m; t.classList.add('show');
