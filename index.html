@@ -58,6 +58,7 @@ a,button{cursor:crosshair}
 
 /* Content */
 .content{padding:40px}
+.results-hidden{display:none!important}
 .view{display:none}
 .view.active{display:block}
 
@@ -378,7 +379,7 @@ a,button{cursor:crosshair}
       </div>
 
       <!-- Results -->
-      <div id="results" style="display:none">
+      <div id="results" class="results-hidden" style="display:none">
 
         <!-- Score strip -->
         <div class="score-strip" style="margin-top:24px">
@@ -416,7 +417,7 @@ a,button{cursor:crosshair}
             <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1.5" y="1.5" width="10" height="10" rx="1"/><path d="M4.5 6.5h4M6.5 4.5v4"/></svg>
             Exportar PDF
           </button>
-          <button class="btn btn-ghost" onclick="document.getElementById('results').style.display='none';document.getElementById('audit-empty').style.display='';document.getElementById('audit-html').value=''">
+          <button class="btn btn-ghost" onclick="document.getElementById('results').classList.add('results-hidden');document.getElementById('results').style.display='none';document.getElementById('audit-empty').style.display='';document.getElementById('audit-html').value=''">
             ✕ Nova
           </button>
         </div>
@@ -588,6 +589,9 @@ let sbKey = localStorage.getItem('seo-sbkey') || '';
 let tt; // toast timer
 document.getElementById('sb-url').value = sbUrl;
 document.getElementById('sb-key').value = sbKey;
+// Always start clean — results only show after an audit runs
+document.getElementById('results').classList.add('results-hidden');document.getElementById('results').style.display = 'none';
+document.getElementById('audit-empty').style.display = '';
 updateCount();
 
 // ── Extension bridge ───────────────────────────────────────────
@@ -632,7 +636,7 @@ function showView(name, btn) {
   } else {
     // Only show results if there's an active audit
     if (!currentAudit) {
-      document.getElementById('results').style.display = 'none';
+      document.getElementById('results').classList.add('results-hidden');document.getElementById('results').style.display = 'none';
       document.getElementById('audit-empty').style.display = '';
     }
   }
@@ -816,7 +820,7 @@ async function runAudit() {
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div> A analisar...';
   setStatus('A processar com IA...', true);
-  document.getElementById('results').style.display = 'none';
+  document.getElementById('results').classList.add('results-hidden');document.getElementById('results').style.display = 'none';
   document.getElementById('audit-empty').style.display = 'none';
 
   const local = preAnalyse(html, keyword);
@@ -1077,7 +1081,7 @@ function renderResults(data) {
     document.getElementById('alt-panel').style.display = 'none';
   }
 
-  document.getElementById('results').style.display = '';
+  document.getElementById('results').classList.remove('results-hidden');document.getElementById('results').style.display = '';
 }
 
 // ── SERP ──────────────────────────────────────────────────────
