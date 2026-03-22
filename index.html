@@ -182,6 +182,39 @@ a,button{cursor:crosshair}
 .kw-val{font-size:10px;color:#888;font-family:var(--mono)}
 
 
+/* SERP Preview */
+.serp-wrap{border:var(--border);border-top:none}
+.serp-tabs{display:flex;border-bottom:var(--border);background:#F0EFE8}
+.serp-tab{padding:10px 20px;border:none;border-right:var(--border);background:transparent;font-family:var(--mono);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;cursor:pointer;transition:background .1s}
+.serp-tab:hover{background:var(--yellow)}
+.serp-tab.active{background:var(--black);color:var(--yellow)}
+.serp-preview{padding:24px 28px;background:#fff;font-family:arial,sans-serif}
+.serp-google-label{font-size:10px;color:#888;letter-spacing:.04em;text-transform:uppercase;font-family:var(--mono);margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid #eee}
+.serp-url{font-size:13px;color:#006621;margin-bottom:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.serp-title{font-size:20px;color:#1a0dab;margin-bottom:4px;line-height:1.3;cursor:pointer}
+.serp-title:hover{text-decoration:underline}
+.serp-title-mobile{font-size:18px}
+.serp-title.truncated{color:#c00}
+.serp-desc{font-size:13px;color:#545454;line-height:1.58;max-width:600px}
+.serp-desc.truncated{color:#c00}
+.serp-chars{margin-top:10px;display:flex;gap:16px;font-family:var(--mono);font-size:10px;padding-top:10px;border-top:1px solid #eee}
+.serp-chars span{padding:3px 8px;border:1px solid}
+.char-ok{color:#166534;border-color:#166534;background:#f0fdf4}
+.char-warn{color:#B45309;border-color:#B45309;background:#fffbeb}
+.char-err{color:var(--red);border-color:var(--red);background:#fff5f5}
+.serp-mobile-site{display:flex;align-items:center;gap:10px;margin-bottom:8px}
+.serp-mobile-favicon{width:28px;height:28px;background:#4285f4;border-radius:50%;display:flex;align-items:center;justify-content:center;color:white;font-weight:700;font-size:14px;flex-shrink:0}
+.serp-mobile-domain{font-size:14px;font-weight:500;color:#202124}
+
+/* Alt panel */
+.alt-panel-body{border:var(--border);border-top:none}
+.alt-img-row{display:grid;grid-template-columns:60px 1fr;border-bottom:1px solid #E4E2DB;align-items:center}
+.alt-img-row:last-child{border-bottom:none}
+.alt-img-num{padding:12px 16px;font-family:var(--sans);font-size:11px;font-weight:900;color:#aaa;border-right:var(--border);text-align:center}
+.alt-img-info{padding:12px 16px}
+.alt-img-src{font-family:var(--mono);font-size:10px;color:#666;word-break:break-all;margin-bottom:4px}
+.alt-img-fix{font-size:10px;color:var(--red);font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+
 .limits-panel{border:var(--border);border-top:none;background:#FAFAF5}
 .limits-head{padding:10px 16px;border-bottom:var(--border);font-size:10px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:8px;color:#555}
 .limits-body{display:grid;grid-template-columns:1fr 1fr;border-bottom:var(--border)}
@@ -469,6 +502,53 @@ a,button{cursor:crosshair}
         </div>
         <div class="rec-full" id="rec-list"></div>
 
+        <!-- SERP Preview -->
+        <div class="panel-head" style="border:var(--border);border-bottom:none;margin-top:24px;background:var(--black)">
+          <span class="panel-head-title">06 — SERP Snippet Preview</span>
+          <span class="badge b-accent">Google</span>
+        </div>
+        <div class="serp-wrap" id="serp-wrap">
+          <div class="serp-tabs">
+            <button class="serp-tab active" onclick="serpTab('desktop',this)">Desktop</button>
+            <button class="serp-tab" onclick="serpTab('mobile',this)">Mobile</button>
+          </div>
+          <div class="serp-preview" id="serp-desktop">
+            <div class="serp-google-label">Google — resultado de pesquisa</div>
+            <div class="serp-url" id="serp-url-d">—</div>
+            <div class="serp-title" id="serp-title-d">—</div>
+            <div class="serp-desc" id="serp-desc-d">—</div>
+            <div class="serp-chars">
+              <span id="serp-title-chars-d"></span>
+              <span id="serp-desc-chars-d"></span>
+            </div>
+          </div>
+          <div class="serp-preview" id="serp-mobile" style="display:none">
+            <div class="serp-google-label">Google Mobile — resultado de pesquisa</div>
+            <div class="serp-mobile-site" id="serp-mobile-site">
+              <div class="serp-mobile-favicon" id="serp-mobile-favicon">G</div>
+              <div>
+                <div class="serp-mobile-domain" id="serp-mobile-domain">—</div>
+                <div class="serp-url" id="serp-url-m" style="font-size:11px">—</div>
+              </div>
+            </div>
+            <div class="serp-title serp-title-mobile" id="serp-title-m">—</div>
+            <div class="serp-desc" id="serp-desc-m">—</div>
+            <div class="serp-chars">
+              <span id="serp-title-chars-m"></span>
+              <span id="serp-desc-chars-m"></span>
+            </div>
+          </div>
+        </div>
+
+        <!-- Image Alt Attributes -->
+        <div id="alt-panel" style="display:none;margin-top:24px">
+          <div class="panel-head" style="border:var(--border);border-bottom:none;background:var(--black)">
+            <span class="panel-head-title">07 — Imagens sem Alt Text</span>
+            <span class="badge b-err" id="alt-badge">—</span>
+          </div>
+          <div class="alt-panel-body" id="alt-panel-body"></div>
+        </div>
+
       </div><!-- /results -->
 
       <div id="audit-empty" style="margin-top:24px">
@@ -550,7 +630,11 @@ function showView(name, btn) {
     renderHist(filteredAudits);
     document.getElementById('audit-empty').style.display = 'none';
   } else {
-    document.getElementById('audit-empty').style.display = '';
+    // Only show results if there's an active audit
+    if (!currentAudit) {
+      document.getElementById('results').style.display = 'none';
+      document.getElementById('audit-empty').style.display = '';
+    }
   }
 }
 
@@ -648,7 +732,8 @@ function preAnalyse(html, keyword) {
     hasCanonical: !!p.querySelector('link[rel="canonical"]'),
     hasViewport: !!p.querySelector('meta[name="viewport"]'),
     hasSchema: html.includes('application/ld+json'),
-    ogTitle, ogDesc, ogImage, kwData
+    ogTitle, ogDesc, ogImage, kwData,
+    imgsNoAltList: [...allImgs].filter(i => !i.getAttribute('alt')).map(i => i.getAttribute('src') || i.getAttribute('data-src') || '').filter(Boolean)
   };
 }
 
@@ -969,10 +1054,80 @@ function renderResults(data) {
   document.getElementById('rec-list').innerHTML = (data.recommendations||[]).map((r,i) => `
     <div class="rec-item">
       <span class="rec-num">${String(i+1).padStart(2,'0')}</span>
-      <span class="rec-text">${r.text}</span>
+      <span class="rec-text">${typeof r === 'string' ? r : r.text}</span>
     </div>`).join('');
 
+  // SERP Preview
+  renderSerp(currentAudit.local, currentAudit.url);
+
+  // Alt images panel
+  const imgsNoAltList = currentAudit.local?.imgsNoAltList || [];
+  if (imgsNoAltList.length > 0) {
+    document.getElementById('alt-panel').style.display = '';
+    document.getElementById('alt-badge').textContent = `${imgsNoAltList.length} sem alt`;
+    document.getElementById('alt-panel-body').innerHTML = imgsNoAltList.map((src, i) => `
+      <div class="alt-img-row">
+        <div class="alt-img-num">${i+1}</div>
+        <div class="alt-img-info">
+          <div class="alt-img-src">${src}</div>
+          <div class="alt-img-fix">✗ Alt text ausente — adiciona descrição da imagem</div>
+        </div>
+      </div>`).join('');
+  } else {
+    document.getElementById('alt-panel').style.display = 'none';
+  }
+
   document.getElementById('results').style.display = '';
+}
+
+// ── SERP ──────────────────────────────────────────────────────
+function renderSerp(local, url) {
+  const title = local.title || '';
+  const desc = local.metaDesc || '';
+  const maxTitleD = 60, maxTitleM = 55, maxDesc = 160;
+
+  const truncate = (str, max) => str.length > max ? str.substring(0, max) + '...' : str;
+  const charClass = (len, ok, warn) => len <= ok ? 'char-ok' : len <= warn ? 'char-warn' : 'char-err';
+
+  // Format display URL
+  let displayUrl = url;
+  try { const u = new URL(url); displayUrl = u.hostname + u.pathname; } catch {}
+
+  // Desktop
+  const titleD = truncate(title, maxTitleD);
+  const descD = truncate(desc, maxDesc);
+  document.getElementById('serp-url-d').textContent = displayUrl;
+  document.getElementById('serp-title-d').textContent = titleD || 'Título não definido';
+  document.getElementById('serp-title-d').className = 'serp-title' + (title.length > maxTitleD ? ' truncated' : '');
+  document.getElementById('serp-desc-d').textContent = descD || 'Meta description não definida — o Google vai gerar um snippet automático.';
+  document.getElementById('serp-desc-d').className = 'serp-desc' + (desc.length > maxDesc ? ' truncated' : '');
+  document.getElementById('serp-title-chars-d').className = charClass(title.length, 60, 70);
+  document.getElementById('serp-title-chars-d').textContent = `Título: ${title.length}/60 chars`;
+  document.getElementById('serp-desc-chars-d').className = charClass(desc.length, 160, 175);
+  document.getElementById('serp-desc-chars-d').textContent = `Description: ${desc.length}/160 chars`;
+
+  // Mobile
+  const titleM = truncate(title, maxTitleM);
+  const descM = truncate(desc, 120);
+  let domain = url;
+  try { domain = new URL(url).hostname.replace('www.', ''); } catch {}
+  document.getElementById('serp-url-m').textContent = displayUrl;
+  document.getElementById('serp-mobile-domain').textContent = domain;
+  document.getElementById('serp-mobile-favicon').textContent = domain.charAt(0).toUpperCase();
+  document.getElementById('serp-title-m').textContent = titleM || 'Título não definido';
+  document.getElementById('serp-title-m').className = 'serp-title serp-title-mobile' + (title.length > maxTitleM ? ' truncated' : '');
+  document.getElementById('serp-desc-m').textContent = descM || 'Meta description não definida.';
+  document.getElementById('serp-title-chars-m').className = charClass(title.length, 55, 65);
+  document.getElementById('serp-title-chars-m').textContent = `Título: ${title.length}/55 chars (mobile)`;
+  document.getElementById('serp-desc-chars-m').className = charClass(desc.length, 120, 140);
+  document.getElementById('serp-desc-chars-m').textContent = `Description: ${desc.length}/120 chars (mobile)`;
+}
+
+function serpTab(tab, btn) {
+  document.querySelectorAll('.serp-tab').forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+  document.getElementById('serp-desktop').style.display = tab === 'desktop' ? '' : 'none';
+  document.getElementById('serp-mobile').style.display = tab === 'mobile' ? '' : 'none';
 }
 
 // ── Save ──────────────────────────────────────────────────────
