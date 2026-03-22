@@ -1,0 +1,767 @@
+<!DOCTYPE html>
+<html lang="pt">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SEO AUDIT — Dashboard</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Unbounded:wght@400;700;900&family=Space+Mono:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --black:#0A0A0A;--white:#F5F4EF;--yellow:#E8FF00;--red:#FF2B00;--border:3px solid #0A0A0A;
+  --sans:'Unbounded',sans-serif;--mono:'Space Mono',monospace;
+}
+body{font-family:var(--mono);background:var(--white);color:var(--black);min-height:100vh;cursor:crosshair;-webkit-font-smoothing:antialiased}
+a,button{cursor:crosshair}
+
+/* Layout */
+.shell{display:grid;grid-template-columns:280px 1fr;min-height:100vh}
+
+/* Sidebar */
+.sidebar{background:var(--black);border-right:var(--border);padding:0;display:flex;flex-direction:column;position:sticky;top:0;height:100vh;overflow-y:auto}
+.logo{padding:24px 20px;border-bottom:var(--border)}
+.logo-top{display:flex;align-items:center;gap:10px;margin-bottom:6px}
+.logo-box{width:32px;height:32px;background:var(--yellow);border:2px solid var(--yellow);display:flex;align-items:center;justify-content:center}
+.logo-box svg{width:16px;height:16px;stroke:var(--black)}
+.logo-name{font-family:var(--sans);font-size:13px;font-weight:900;color:var(--white);letter-spacing:.04em}
+.logo-sub{font-size:9px;color:#444;letter-spacing:.1em;text-transform:uppercase}
+.nav-section{padding:16px 0}
+.nav-label{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#444;padding:0 20px;margin-bottom:6px}
+.nav-item{display:flex;align-items:center;gap:10px;padding:10px 20px;border:none;border-bottom:1px solid #1a1a1a;background:transparent;font-family:var(--mono);font-size:11px;color:#666;cursor:pointer;width:100%;text-align:left;letter-spacing:.04em;text-transform:uppercase;transition:all .1s}
+.nav-item:hover{background:#111;color:var(--white)}
+.nav-item.active{background:var(--yellow);color:var(--black);border-bottom-color:var(--yellow)}
+.nav-item.active svg{stroke:var(--black)}
+.nav-item svg{flex-shrink:0;stroke:#555;width:13px;height:13px}
+.nav-item.active svg{stroke:var(--black)}
+.nav-count{margin-left:auto;background:#1a1a1a;color:#555;font-size:10px;padding:1px 6px;font-family:var(--mono)}
+.nav-item.active .nav-count{background:rgba(0,0,0,.2);color:var(--black)}
+.sb-bottom{margin-top:auto;border-top:var(--border)}
+.config-box{padding:16px 20px}
+.config-box p{font-size:10px;color:#555;line-height:1.6;margin-bottom:10px;letter-spacing:.02em}
+.config-box input{width:100%;padding:7px 10px;background:#111;border:2px solid #333;font-family:var(--mono);font-size:10px;color:#aaa;outline:none;margin-bottom:6px;transition:border-color .12s}
+.config-box input:focus{border-color:var(--yellow);color:var(--white)}
+.config-box input::placeholder{color:#444}
+.btn-cfg{width:100%;padding:9px;background:var(--yellow);color:var(--black);border:none;font-family:var(--sans);font-size:10px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;transition:opacity .12s}
+.btn-cfg:hover{opacity:.85}
+
+/* Main */
+.main{padding:0;overflow-x:hidden}
+
+/* Top bar */
+.topbar{border-bottom:var(--border);padding:16px 40px;display:flex;align-items:center;justify-content:space-between;background:var(--white);position:sticky;top:0;z-index:10}
+.topbar-title{font-family:var(--sans);font-size:12px;font-weight:900;letter-spacing:.04em;text-transform:uppercase}
+.topbar-status{font-size:10px;color:#888;letter-spacing:.06em;text-transform:uppercase;display:flex;align-items:center;gap:6px}
+.status-dot{width:6px;height:6px;border-radius:50%;background:#888}
+.status-dot.live{background:var(--yellow);animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+
+/* Content */
+.content{padding:40px}
+.view{display:none}
+.view.active{display:block}
+
+/* Section header */
+.sec-head{margin-bottom:28px}
+.sec-title{font-family:var(--sans);font-size:18px;font-weight:900;letter-spacing:-.02em;text-transform:uppercase;line-height:1;margin-bottom:6px}
+.sec-sub{font-size:11px;color:#666;letter-spacing:.04em}
+
+/* Audit form */
+.audit-panel{border:var(--border);margin-bottom:0}
+.panel-head{padding:14px 20px;border-bottom:var(--border);background:var(--black);display:flex;align-items:center;justify-content:space-between}
+.panel-head-title{font-family:var(--sans);font-size:11px;font-weight:700;color:var(--white);letter-spacing:.06em;text-transform:uppercase}
+.panel-body{padding:24px}
+.field{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.field:last-child{margin-bottom:0}
+.field label{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#666}
+.field input,.field textarea{width:100%;padding:10px 14px;background:var(--white);border:var(--border);font-family:var(--mono);font-size:13px;color:var(--black);outline:none;transition:border-color .1s}
+.field input:focus,.field textarea:focus{border-color:var(--yellow);outline:3px solid var(--yellow);outline-offset:-3px}
+.field input::placeholder,.field textarea::placeholder{color:#aaa}
+.field textarea{resize:vertical;min-height:160px;line-height:1.65;font-size:12px}
+.field-hint{font-size:10px;color:#888;letter-spacing:.02em}
+.panel-foot{padding:14px 20px;border-top:var(--border);display:flex;justify-content:flex-end;background:#F0EFE8}
+
+/* Buttons */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 22px;font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;border:var(--border);transition:all .1s;text-transform:uppercase}
+.btn-primary{background:var(--black);color:var(--yellow);box-shadow:4px 4px 0 var(--black)}
+.btn-primary:hover:not(:disabled){transform:translate(4px,4px);box-shadow:0 0 0 var(--black)}
+.btn-primary:disabled{opacity:.4;cursor:not-allowed;transform:none;box-shadow:4px 4px 0 var(--black)}
+.btn-ghost{background:var(--white);color:var(--black)}
+.btn-ghost:hover{background:var(--yellow)}
+.btn-red{background:var(--red);color:var(--white);border-color:var(--red)}
+.btn-red:hover{opacity:.88}
+
+/* Score display */
+.score-strip{border:var(--border);border-bottom:none;display:grid;grid-template-columns:180px 1fr;margin-bottom:0}
+.score-block{padding:28px 24px;border-right:var(--border);display:flex;flex-direction:column;align-items:center;gap:10px}
+.score-big{font-family:var(--sans);font-size:72px;font-weight:900;line-height:1;letter-spacing:-.04em}
+.score-lbl{font-size:9px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:#888}
+.score-grade-pill{font-family:var(--sans);font-size:10px;font-weight:700;padding:4px 12px;letter-spacing:.06em;text-transform:uppercase;border:2px solid var(--black)}
+.stats-strip{display:grid;grid-template-columns:repeat(3,1fr)}
+.stat-cell{padding:24px;border-right:var(--border);border-bottom:var(--border);display:flex;flex-direction:column;gap:6px}
+.stat-cell:nth-child(3){border-right:none}
+.stat-cell:nth-child(4),.stat-cell:nth-child(5),.stat-cell:nth-child(6){border-bottom:none}
+.stat-n{font-family:var(--sans);font-size:36px;font-weight:900;line-height:1;letter-spacing:-.03em}
+.stat-l{font-size:9px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:#888}
+
+/* Actions */
+.actions-bar{border:var(--border);border-top:none;padding:12px 16px;display:flex;gap:8px;flex-wrap:wrap;background:#F0EFE8}
+
+/* Result sections */
+.results-wrap{margin-top:24px}
+.result-row{display:grid;grid-template-columns:1fr 1fr;border:var(--border);border-bottom:none}
+.result-row:last-child{border-bottom:var(--border)}
+.result-panel{border-right:var(--border)}
+.result-panel:last-child{border-right:none}
+.rp-head{padding:12px 16px;border-bottom:var(--border);background:var(--black);display:flex;align-items:center;justify-content:space-between}
+.rp-title{font-family:var(--sans);font-size:10px;font-weight:700;color:var(--white);letter-spacing:.08em;text-transform:uppercase}
+.rp-body{padding:16px}
+
+/* Checklist */
+.checklist{display:flex;flex-direction:column;gap:0}
+.check-row{display:flex;align-items:center;gap:10px;padding:9px 10px;border-bottom:1px solid #E4E2DB;font-size:11px}
+.check-row:last-child{border-bottom:none}
+.check-row.pass{background:transparent}
+.check-row.fail{background:#FFF5F5}
+.check-mark{width:16px;height:16px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;flex-shrink:0;border:2px solid}
+.pass .check-mark{border-color:var(--black);background:var(--black);color:var(--white)}
+.fail .check-mark{border-color:var(--red);background:var(--red);color:var(--white)}
+.check-lbl{flex:1;color:#333;letter-spacing:.02em}
+.check-val{font-size:10px;color:#888;font-family:var(--mono)}
+
+/* Issues */
+.issues-list{display:flex;flex-direction:column;gap:0}
+.issue{padding:10px 12px;border-bottom:1px solid #E4E2DB;display:flex;align-items:flex-start;gap:10px;font-size:11px;line-height:1.55}
+.issue:last-child{border-bottom:none}
+.issue-flag{font-size:9px;font-weight:700;padding:2px 6px;letter-spacing:.06em;text-transform:uppercase;flex-shrink:0;margin-top:1px;border:1px solid}
+.issue.critical .issue-flag{background:var(--red);border-color:var(--red);color:white}
+.issue.warning .issue-flag{background:var(--yellow);border-color:var(--black);color:var(--black)}
+.issue.ok .issue-flag{background:var(--black);border-color:var(--black);color:white}
+
+/* Summary */
+.summary-panel{border:var(--border);margin-top:24px}
+.summary-inner{padding:20px;font-size:12px;line-height:1.9;color:#333;border-left:6px solid var(--yellow)}
+
+/* Recommendations */
+.rec-full{border:var(--border);border-top:none}
+.rec-item{padding:14px 16px;border-bottom:1px solid #E4E2DB;display:grid;grid-template-columns:32px 1fr;gap:12px;align-items:start}
+.rec-item:last-child{border-bottom:none}
+.rec-num{font-family:var(--sans);font-size:13px;font-weight:900;color:var(--black)}
+.rec-text{font-size:12px;color:#333;line-height:1.7;letter-spacing:.01em}
+
+/* Badge */
+.badge{font-size:9px;font-weight:700;padding:3px 8px;letter-spacing:.08em;text-transform:uppercase;border:1px solid}
+.b-ok{background:var(--black);border-color:var(--black);color:var(--white)}
+.b-warn{background:var(--yellow);border-color:var(--black);color:var(--black)}
+.b-err{background:var(--red);border-color:var(--red);color:var(--white)}
+.b-accent{background:var(--black);border-color:var(--black);color:var(--yellow)}
+
+/* History */
+.hist-controls{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px}
+.hist-search{padding:10px 14px;border:var(--border);font-family:var(--mono);font-size:12px;color:var(--black);background:var(--white);outline:none;flex:1}
+.hist-search:focus{outline:3px solid var(--yellow);outline-offset:-3px}
+.hist-search::placeholder{color:#aaa}
+.hist-list{display:flex;flex-direction:column;gap:0;border:var(--border)}
+.hist-card{padding:18px 20px;border-bottom:3px solid var(--black);cursor:pointer;transition:background .1s;display:grid;grid-template-columns:80px 1fr auto;gap:16px;align-items:center}
+.hist-card:last-child{border-bottom:none}
+.hist-card:hover{background:var(--yellow)}
+.hist-score-big{font-family:var(--sans);font-size:28px;font-weight:900;line-height:1}
+.hist-url{font-family:var(--mono);font-size:12px;font-weight:700;color:var(--black);margin-bottom:4px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.hist-meta{font-size:10px;color:#888;letter-spacing:.04em}
+.hist-chips{display:flex;gap:6px;justify-content:flex-end;flex-wrap:wrap}
+
+/* Spinner */
+.spin{width:14px;height:14px;border-radius:50%;border:2px solid rgba(255,255,0,.3);border-top-color:var(--yellow);animation:sp .6s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+
+/* Empty */
+.empty-state{padding:72px 24px;text-align:center;border:var(--border);border-style:dashed}
+.empty-icon{font-family:var(--sans);font-size:48px;font-weight:900;color:#E4E2DB;margin-bottom:12px}
+.empty-title{font-family:var(--sans);font-size:14px;font-weight:900;text-transform:uppercase;letter-spacing:.04em;margin-bottom:6px}
+.empty-sub{font-size:11px;color:#888;letter-spacing:.04em}
+
+/* Toast */
+.toast{position:fixed;bottom:24px;right:24px;background:var(--black);border:var(--border);color:var(--yellow);padding:12px 18px;font-family:var(--mono);font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;opacity:0;transform:translateY(8px);transition:all .2s;pointer-events:none;z-index:999}
+.toast.show{opacity:1;transform:none}
+
+@media(max-width:900px){.shell{grid-template-columns:1fr}.sidebar{display:none}.content{padding:20px}.score-strip{grid-template-columns:1fr}.result-row{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<div class="shell">
+
+<!-- Sidebar -->
+<aside class="sidebar">
+  <div class="logo">
+    <div class="logo-top">
+      <div class="logo-box">
+        <svg viewBox="0 0 16 16" fill="none" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 12l4-4 3 3 4-6"/><circle cx="8" cy="4" r="1.5"/>
+        </svg>
+      </div>
+      <div class="logo-name">SEO_AUDIT</div>
+    </div>
+    <div class="logo-sub">Dashboard v1.0 — Portugal</div>
+  </div>
+
+  <div class="nav-section">
+    <div class="nav-label">Navegação</div>
+    <button class="nav-item active" onclick="showView('audit',this)">
+      <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9L12 12"/></svg>
+      Nova auditoria
+    </button>
+    <button class="nav-item" onclick="showView('history',this)">
+      <svg viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><circle cx="6.5" cy="6.5" r="4.5"/><path d="M6.5 4.5v2.5l1.5 1"/></svg>
+      Histórico
+      <span class="nav-count" id="hist-count">0</span>
+    </button>
+  </div>
+
+  <div class="sb-bottom">
+    <div class="config-box">
+      <p>SUPABASE — guarda auditorias na cloud. Insere as credenciais do teu projecto.</p>
+      <input type="text" id="sb-url" placeholder="Project URL">
+      <input type="text" id="sb-key" placeholder="anon key">
+      <button class="btn-cfg" onclick="saveCfg()">▶ Guardar config</button>
+    </div>
+  </div>
+</aside>
+
+<!-- Main -->
+<main class="main">
+  <div class="topbar">
+    <div class="topbar-title">SEO Audit Dashboard</div>
+    <div class="topbar-status">
+      <div class="status-dot live" id="status-dot"></div>
+      <span id="status-text">Pronto para auditar</span>
+    </div>
+  </div>
+
+  <div class="content">
+
+    <!-- View: Audit -->
+    <div class="view active" id="view-audit">
+      <div class="sec-head">
+        <div class="sec-title">Nova auditoria</div>
+        <div class="sec-sub">Cola o HTML da página → recebe score, problemas e recomendações com IA</div>
+      </div>
+
+      <div class="audit-panel">
+        <div class="panel-head">
+          <span class="panel-head-title">▶ Input — dados da página</span>
+          <span class="badge b-accent">IA activa</span>
+        </div>
+        <div class="panel-body">
+          <div class="field">
+            <label>URL da página</label>
+            <input type="text" id="audit-url" placeholder="https://exemplo.pt/pagina-a-auditar">
+          </div>
+          <div class="field">
+            <label>HTML da página *</label>
+            <textarea id="audit-html" placeholder="Cola aqui o HTML completo da página.&#10;&#10;Como obter: browser → botão direito → 'Ver código fonte' → Ctrl+A → Ctrl+C → cola aqui."></textarea>
+            <span class="field-hint">// O HTML é processado localmente — apenas os metadados são enviados para a IA</span>
+          </div>
+        </div>
+        <div class="panel-foot">
+          <button class="btn btn-primary" id="audit-btn" onclick="runAudit()">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9L12 12"/></svg>
+            Auditar agora
+          </button>
+        </div>
+      </div>
+
+      <!-- Results -->
+      <div id="results" style="display:none">
+
+        <!-- Score strip -->
+        <div class="score-strip" style="margin-top:24px">
+          <div class="score-block">
+            <div class="score-lbl">Score SEO</div>
+            <div class="score-big" id="score-num">—</div>
+            <div class="score-grade-pill" id="score-grade">—</div>
+          </div>
+          <div class="stats-strip">
+            <div class="stat-cell">
+              <div class="stat-n" id="stat-crit" style="color:var(--red)">0</div>
+              <div class="stat-l">Críticos</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-n" id="stat-warn" style="color:#B45309">0</div>
+              <div class="stat-l">Avisos</div>
+            </div>
+            <div class="stat-cell">
+              <div class="stat-n" id="stat-pass" style="color:#166534">0</div>
+              <div class="stat-l">OK</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Actions -->
+        <div class="actions-bar">
+          <button class="btn btn-primary" onclick="saveAudit()">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 9v2h11V9M6.5 1v7M4 5l2.5 3 2.5-3"/></svg>
+            Guardar
+          </button>
+          <button class="btn btn-ghost" onclick="exportPDF()">
+            <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><rect x="1.5" y="1.5" width="10" height="10" rx="1"/><path d="M4.5 6.5h4M6.5 4.5v4"/></svg>
+            Exportar PDF
+          </button>
+          <button class="btn btn-ghost" onclick="document.getElementById('results').style.display='none';document.getElementById('audit-empty').style.display='';document.getElementById('audit-html').value=''">
+            ✕ Nova
+          </button>
+        </div>
+
+        <!-- Summary -->
+        <div class="summary-panel">
+          <div class="panel-head" style="background:var(--yellow);border-bottom:var(--border)">
+            <span class="panel-head-title" style="color:var(--black)">// Análise IA — resumo executivo</span>
+            <span class="badge b-accent">Claude</span>
+          </div>
+          <div class="summary-inner" id="ai-summary"></div>
+        </div>
+
+        <!-- Checks grid -->
+        <div class="results-wrap">
+          <div class="result-row">
+            <div class="result-panel">
+              <div class="rp-head"><span class="rp-title">01 — Meta tags</span><span class="badge" id="badge-meta">—</span></div>
+              <div class="rp-body"><div class="checklist" id="check-meta"></div></div>
+            </div>
+            <div class="result-panel">
+              <div class="rp-head"><span class="rp-title">02 — Conteúdo</span><span class="badge" id="badge-content">—</span></div>
+              <div class="rp-body"><div class="checklist" id="check-content"></div></div>
+            </div>
+          </div>
+          <div class="result-row">
+            <div class="result-panel">
+              <div class="rp-head"><span class="rp-title">03 — Boas práticas</span><span class="badge" id="badge-tech">—</span></div>
+              <div class="rp-body"><div class="checklist" id="check-tech"></div></div>
+            </div>
+            <div class="result-panel">
+              <div class="rp-head"><span class="rp-title">04 — Problemas</span><span class="badge b-err" id="badge-issues">—</span></div>
+              <div class="rp-body"><div class="issues-list" id="issues-list"></div></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Recommendations -->
+        <div class="panel-head" style="border:var(--border);border-bottom:none;margin-top:24px;background:var(--black)">
+          <span class="panel-head-title">05 — Recomendações prioritárias da IA</span>
+          <span class="badge b-accent">IA</span>
+        </div>
+        <div class="rec-full" id="rec-list"></div>
+
+      </div><!-- /results -->
+
+      <div id="audit-empty" style="margin-top:24px">
+        <div class="empty-state">
+          <div class="empty-icon">[ ? ]</div>
+          <div class="empty-title">Pronto para auditar</div>
+          <div class="empty-sub">Cola o HTML acima e clica em "Auditar agora"</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- View: History -->
+    <div class="view" id="view-history">
+      <div class="sec-head">
+        <div class="sec-title">Histórico</div>
+        <div class="sec-sub">Todas as auditorias guardadas nesta sessão e localmente</div>
+      </div>
+      <div class="hist-controls">
+        <input class="hist-search" type="text" placeholder="Pesquisar por URL..." oninput="filterHist(this.value)">
+        <button class="btn btn-red" onclick="clearHist()">✕ Limpar</button>
+      </div>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+
+  </div><!-- /content -->
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script>
+// ── State ──────────────────────────────────────────────────────
+let audits = JSON.parse(localStorage.getItem('seo-audits-b') || '[]');
+let filteredAudits = [...audits];
+let currentAudit = null;
+let sbUrl = localStorage.getItem('seo-sburl') || '';
+let sbKey = localStorage.getItem('seo-sbkey') || '';
+document.getElementById('sb-url').value = sbUrl;
+document.getElementById('sb-key').value = sbKey;
+updateCount();
+
+// ── Nav ────────────────────────────────────────────────────────
+function showView(name, btn) {
+  document.querySelectorAll('.view').forEach(v => v.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(b => b.classList.remove('active'));
+  document.getElementById('view-' + name).classList.add('active');
+  btn.classList.add('active');
+  if (name === 'history') renderHist(filteredAudits);
+}
+
+function setStatus(msg, live = true) {
+  document.getElementById('status-text').textContent = msg;
+  document.getElementById('status-dot').className = 'status-dot' + (live ? ' live' : '');
+}
+
+// ── Config ────────────────────────────────────────────────────
+function saveCfg() {
+  sbUrl = document.getElementById('sb-url').value.trim();
+  sbKey = document.getElementById('sb-key').value.trim();
+  localStorage.setItem('seo-sburl', sbUrl);
+  localStorage.setItem('seo-sbkey', sbKey);
+  showToast('Config guardada');
+}
+
+async function sbSave(record) {
+  if (!sbUrl || !sbKey) return false;
+  try {
+    const r = await fetch(sbUrl + '/rest/v1/auditorias', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'apikey': sbKey, 'Authorization': 'Bearer ' + sbKey, 'Prefer': 'return=minimal' },
+      body: JSON.stringify(record)
+    });
+    return r.ok;
+  } catch { return false; }
+}
+
+// ── Pre-analysis ──────────────────────────────────────────────
+function preAnalyse(html) {
+  const p = new DOMParser().parseFromString(html, 'text/html');
+  const title = p.querySelector('title')?.textContent?.trim() || '';
+  const metaDesc = p.querySelector('meta[name="description"]')?.getAttribute('content')?.trim() || '';
+  const h1s = [...p.querySelectorAll('h1')].map(h => h.textContent.trim().substring(0, 50));
+  const allImgs = p.querySelectorAll('img');
+  const imgsNoAlt = [...allImgs].filter(i => !i.getAttribute('alt')).length;
+  const allLinks = p.querySelectorAll('a[href]');
+  const internalLinks = [...allLinks].filter(a => { try { return !a.href.startsWith('http') || new URL(a.href).hostname === location.hostname; } catch { return true; } }).length;
+  const externalLinks = allLinks.length - internalLinks;
+  const bodyText = p.body?.textContent || '';
+  const words = bodyText.toLowerCase().split(/\s+/).filter(w => w.length > 3);
+  const freq = {};
+  words.forEach(w => { freq[w] = (freq[w] || 0) + 1; });
+  const sorted = Object.entries(freq).sort((a, b) => b[1] - a[1]);
+  return {
+    title, titleLen: title.length, metaDesc, metaDescLen: metaDesc.length,
+    h1Count: h1s.length, h1s: h1s.slice(0, 2),
+    h2Count: p.querySelectorAll('h2').length, h3Count: p.querySelectorAll('h3').length,
+    totalImgs: allImgs.length, imgsNoAlt, internalLinks, externalLinks,
+    wordCount: words.length, topWord: sorted[0]?.[0] || '—', topWordCount: sorted[0]?.[1] || 0,
+    hasCanonical: !!p.querySelector('link[rel="canonical"]'),
+    hasViewport: !!p.querySelector('meta[name="viewport"]'),
+    hasSchema: html.includes('application/ld+json')
+  };
+}
+
+// ── Run audit ─────────────────────────────────────────────────
+async function runAudit() {
+  const html = document.getElementById('audit-html').value.trim();
+  const url = document.getElementById('audit-url').value.trim() || 'URL não especificado';
+  if (!html) { document.getElementById('audit-html').style.outline = '3px solid var(--red)'; return; }
+  document.getElementById('audit-html').style.outline = '';
+
+  const btn = document.getElementById('audit-btn');
+  btn.disabled = true;
+  btn.innerHTML = '<div class="spin"></div> A analisar...';
+  setStatus('A processar com IA...', true);
+  document.getElementById('results').style.display = 'none';
+  document.getElementById('audit-empty').style.display = 'none';
+
+  const local = preAnalyse(html);
+
+  const prompt = `És um especialista em SEO técnico. Analisa este HTML e gera um relatório detalhado.
+
+URL: ${url}
+HTML (primeiros 8000 chars): ${html.substring(0, 8000)}
+
+Dados pré-analisados:
+- Title: "${local.title}" (${local.titleLen} chars)
+- Meta description: "${local.metaDesc}" (${local.metaDescLen} chars)
+- H1 (${local.h1Count}): ${local.h1s.join(' | ')}
+- H2: ${local.h2Count} | H3: ${local.h3Count}
+- Imagens sem alt: ${local.imgsNoAlt}/${local.totalImgs}
+- Links internos: ${local.internalLinks} | externos: ${local.externalLinks}
+- Palavra mais repetida: "${local.topWord}" (${local.topWordCount}x em ${local.wordCount} palavras)
+- Canonical: ${local.hasCanonical?'sim':'não'} | Viewport: ${local.hasViewport?'sim':'não'} | Schema: ${local.hasSchema?'sim':'não'}
+
+Responde APENAS com JSON válido:
+{
+  "score": <0-100>,
+  "grade": <"Excelente"|"Bom"|"Razoável"|"Fraco"|"Crítico">,
+  "summary": "<2-3 frases sobre o estado SEO>",
+  "meta_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
+  "content_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
+  "tech_checks": [{"label":"<texto>","pass":<bool>,"value":"<valor>"}],
+  "issues": [{"severity":"critical"|"warning"|"ok","text":"<texto>"}],
+  "recommendations": [{"text":"<recomendação accionável>"}]
+}
+4-5 items por secção de checks. 4-5 issues. 5-6 recomendações.`;
+
+  let data;
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
+    });
+    const json = await res.json();
+    const raw = json.content.map(b => b.text || '').join('').replace(/```json|```/g, '').trim();
+    data = JSON.parse(raw);
+  } catch {
+    data = buildFallback(local);
+  }
+
+  currentAudit = { id: 'l-' + Date.now(), url, data, local, criado_em: new Date().toISOString() };
+  renderResults(data);
+  setStatus('Auditoria concluída', false);
+
+  btn.disabled = false;
+  btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9L12 12"/></svg> Auditar agora';
+}
+
+// ── Fallback ──────────────────────────────────────────────────
+function buildFallback(l) {
+  const score = Math.min(100, Math.max(10,
+    (l.title?15:0)+(l.titleLen>=30&&l.titleLen<=60?10:0)+
+    (l.metaDesc?15:0)+(l.metaDescLen>=120&&l.metaDescLen<=160?10:0)+
+    (l.h1Count===1?15:0)+(l.hasViewport?10:0)+(l.imgsNoAlt===0?10:0)+(l.hasCanonical?10:0)+(l.hasSchema?5:0)
+  ));
+  return {
+    score, grade: score>=80?'Bom':score>=60?'Razoável':score>=40?'Fraco':'Crítico',
+    summary: `Score SEO de ${score}/100. ${l.title?'Título presente':'Título ausente — crítico'}. ${l.metaDesc?`Meta description com ${l.metaDescLen} chars`:'Meta description ausente'}. ${l.h1Count===1?'H1 correcto':`${l.h1Count} H1 encontrados`}.`,
+    meta_checks: [
+      {label:'Título presente',pass:!!l.title,value:l.title||'Ausente'},
+      {label:'Título 30-60 chars',pass:l.titleLen>=30&&l.titleLen<=60,value:`${l.titleLen} chars`},
+      {label:'Meta description presente',pass:!!l.metaDesc,value:l.metaDesc?`${l.metaDescLen} chars`:'Ausente'},
+      {label:'Meta description 120-160 chars',pass:l.metaDescLen>=120&&l.metaDescLen<=160,value:`${l.metaDescLen} chars`},
+      {label:'Link canonical',pass:l.hasCanonical,value:l.hasCanonical?'Presente':'Ausente'}
+    ],
+    content_checks: [
+      {label:'Um único H1',pass:l.h1Count===1,value:`${l.h1Count} encontrados`},
+      {label:'H2 presentes',pass:l.h2Count>0,value:`${l.h2Count} H2`},
+      {label:'Conteúdo suficiente (300+ palavras)',pass:l.wordCount>300,value:`${l.wordCount} palavras`},
+      {label:'Imagens com alt text',pass:l.imgsNoAlt===0,value:`${l.imgsNoAlt} sem alt de ${l.totalImgs}`},
+      {label:'Links internos presentes',pass:l.internalLinks>0,value:`${l.internalLinks}`}
+    ],
+    tech_checks: [
+      {label:'Viewport meta (mobile)',pass:l.hasViewport,value:l.hasViewport?'Presente':'Ausente'},
+      {label:'Schema markup (JSON-LD)',pass:l.hasSchema,value:l.hasSchema?'Encontrado':'Não encontrado'},
+      {label:'Links externos controlados',pass:l.externalLinks<20,value:`${l.externalLinks}`},
+      {label:'Keyword identificada',pass:!!l.topWord,value:`"${l.topWord}" (${l.topWordCount}x)`}
+    ],
+    issues: [
+      !l.title?{severity:'critical',text:'Título ausente — factor crítico de ranking no Google'}:{severity:'ok',text:`Título: "${l.title.substring(0,50)}"`},
+      !l.metaDesc?{severity:'critical',text:'Meta description ausente — afecta directamente o CTR'}:{severity:l.metaDescLen>160?'warning':'ok',text:`Meta description com ${l.metaDescLen} chars`},
+      l.h1Count!==1?{severity:'warning',text:`${l.h1Count} H1 encontrados — deve haver exactamente 1`}:{severity:'ok',text:'Estrutura H1 correcta'},
+      l.imgsNoAlt>0?{severity:'warning',text:`${l.imgsNoAlt} imagens sem alt text — penaliza acessibilidade e SEO`}:{severity:'ok',text:'Todas as imagens têm alt text'},
+      !l.hasSchema?{severity:'warning',text:'Schema markup ausente — dados estruturados melhoram SERP'}:{severity:'ok',text:'Schema markup presente'}
+    ],
+    recommendations: [
+      {text:l.title?`Optimiza o título para ${l.titleLen>60?'reduzir para':'expandir até'} 50-60 chars com keyword principal nos primeiros 30 chars.`:'Adiciona título com keyword principal nos primeiros 30 chars.'},
+      {text:l.metaDesc?`Meta description com ${l.metaDescLen} chars — ${l.metaDescLen>160?'reduz para':'expande até'} 150-160 chars com CTA claro.`:'Adiciona meta description de 150-160 chars com keyword e call-to-action.'},
+      {text:`Garante que "${l.topWord}" (keyword mais frequente) aparece no H1 e nos primeiros 100 chars do conteúdo.`},
+      {text:l.imgsNoAlt>0?`Adiciona alt text descritivo com keyword às ${l.imgsNoAlt} imagens sem alt.`:'Mantém alt text descritivo em imagens futuras — inclui keyword quando relevante.'},
+      {text:!l.hasSchema?`Adiciona Schema markup JSON-LD adequado ao tipo de página (Article, LocalBusiness, Product).`:'Valida o Schema markup com o Rich Results Test da Google para garantir elegibilidade para rich snippets.'}
+    ]
+  };
+}
+
+// ── Render ────────────────────────────────────────────────────
+function renderResults(data) {
+  const score = data.score || 0;
+  const scoreEl = document.getElementById('score-num');
+  scoreEl.textContent = score;
+  scoreEl.style.color = score >= 70 ? '#166534' : score >= 40 ? '#B45309' : 'var(--red)';
+
+  const gradeEl = document.getElementById('score-grade');
+  gradeEl.textContent = data.grade || '—';
+  const gradeBg = { Excelente:'var(--black)', Bom:'var(--black)', Razoável:'var(--yellow)', Fraco:'var(--red)', Crítico:'var(--red)' };
+  const gradeColor = { Excelente:'#E8FF00', Bom:'#E8FF00', Razoável:'var(--black)', Fraco:'white', Crítico:'white' };
+  gradeEl.style.background = gradeBg[data.grade] || 'var(--black)';
+  gradeEl.style.color = gradeColor[data.grade] || 'white';
+
+  const crit = (data.issues || []).filter(i => i.severity === 'critical').length;
+  const warn = (data.issues || []).filter(i => i.severity === 'warning').length;
+  const pass = [...(data.meta_checks||[]),...(data.content_checks||[]),...(data.tech_checks||[])].filter(c => c.pass).length;
+  document.getElementById('stat-crit').textContent = crit;
+  document.getElementById('stat-warn').textContent = warn;
+  document.getElementById('stat-pass').textContent = pass;
+
+  document.getElementById('ai-summary').textContent = data.summary || '';
+
+  const renderChecks = (id, checks, badgeId) => {
+    const p = (checks||[]).filter(c => c.pass).length, t = (checks||[]).length;
+    const b = document.getElementById(badgeId);
+    b.textContent = `${p}/${t}`;
+    b.className = 'badge ' + (p===t?'b-ok':p>=t*.6?'b-warn':'b-err');
+    document.getElementById(id).innerHTML = (checks||[]).map(c => `
+      <div class="check-row ${c.pass?'pass':'fail'}">
+        <div class="check-mark">${c.pass?'✓':'✕'}</div>
+        <span class="check-lbl">${c.label}</span>
+        <span class="check-val">${c.value||''}</span>
+      </div>`).join('');
+  };
+  renderChecks('check-meta', data.meta_checks, 'badge-meta');
+  renderChecks('check-content', data.content_checks, 'badge-content');
+  renderChecks('check-tech', data.tech_checks, 'badge-tech');
+
+  const sevLabel = {critical:'ERRO',warning:'AVISO',ok:'OK'};
+  document.getElementById('badge-issues').textContent = `${crit} erros`;
+  document.getElementById('issues-list').innerHTML = (data.issues||[]).map(iss => `
+    <div class="issue ${iss.severity}">
+      <span class="issue-flag">${sevLabel[iss.severity]||'?'}</span>
+      <span>${iss.text}</span>
+    </div>`).join('');
+
+  document.getElementById('rec-list').innerHTML = (data.recommendations||[]).map((r,i) => `
+    <div class="rec-item">
+      <span class="rec-num">${String(i+1).padStart(2,'0')}</span>
+      <span class="rec-text">${r.text}</span>
+    </div>`).join('');
+
+  document.getElementById('results').style.display = '';
+}
+
+// ── Save ──────────────────────────────────────────────────────
+async function saveAudit() {
+  if (!currentAudit) return;
+  const rec = { url: currentAudit.url, score: currentAudit.data.score, grade: currentAudit.data.grade, issues_json: JSON.stringify(currentAudit.data.issues), recs_json: JSON.stringify(currentAudit.data.recommendations), criado_em: currentAudit.criado_em };
+  const ok = await sbSave(rec);
+  if (ok) currentAudit.id = 'sb-' + Date.now();
+  audits.unshift(currentAudit);
+  if (audits.length > 50) audits.pop();
+  localStorage.setItem('seo-audits-b', JSON.stringify(audits));
+  filteredAudits = [...audits];
+  updateCount();
+  showToast(ok ? 'Guardado no Supabase' : 'Guardado localmente');
+}
+
+// ── History ───────────────────────────────────────────────────
+function updateCount() { document.getElementById('hist-count').textContent = audits.length; }
+
+function filterHist(q) {
+  filteredAudits = audits.filter(a => a.url.toLowerCase().includes(q.toLowerCase()));
+  renderHist(filteredAudits);
+}
+
+function renderHist(items) {
+  const el = document.getElementById('hist-list');
+  if (!items.length) {
+    el.innerHTML = '<div class="empty-state" style="border:none"><div class="empty-icon">[ 0 ]</div><div class="empty-title">Sem histórico</div><div class="empty-sub">Faz e guarda uma auditoria para a ver aqui</div></div>';
+    return;
+  }
+  el.innerHTML = items.map((a, i) => {
+    const sc = a.data?.score || 0;
+    const col = sc >= 70 ? '#166534' : sc >= 40 ? '#B45309' : 'var(--red)';
+    const crit = (a.data?.issues || []).filter(x => x.severity === 'critical').length;
+    return `<div class="hist-card" onclick="loadAudit(${i})">
+      <div class="hist-score-big" style="color:${col}">${sc}</div>
+      <div>
+        <div class="hist-url">${a.url}</div>
+        <div class="hist-meta">${new Date(a.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'short',year:'numeric'})} — ${a.data?.grade||'—'}</div>
+      </div>
+      <div class="hist-chips">
+        <span class="badge b-err">${crit} ERROS</span>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function loadAudit(i) {
+  currentAudit = filteredAudits[i];
+  document.getElementById('audit-url').value = currentAudit.url;
+  renderResults(currentAudit.data);
+  document.getElementById('audit-empty').style.display = 'none';
+  showView('audit', document.querySelector('.nav-item'));
+}
+
+function clearHist() {
+  if (!confirm('Apagar todo o histórico?')) return;
+  audits = []; filteredAudits = [];
+  localStorage.setItem('seo-audits-b', '[]');
+  updateCount(); renderHist([]);
+}
+
+// ── PDF ───────────────────────────────────────────────────────
+function exportPDF() {
+  if (!currentAudit || typeof window.jspdf === 'undefined') { showToast('A carregar PDF...'); return; }
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+  const W = 210, M = 18;
+  let y = 20;
+  const check = (n) => { if (y + n > 275) { doc.addPage(); y = 20; } };
+  const section = (title) => {
+    check(12);
+    doc.setFillColor(10,10,10); doc.rect(M, y, W-M*2, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
+    doc.text(title.toUpperCase(), M+4, y+5.5); y += 12;
+  };
+
+  // Cover
+  doc.setFillColor(245,244,239); doc.rect(0,0,W,297,'F');
+  doc.setFillColor(10,10,10); doc.rect(0,0,W,90,'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(28); doc.setTextColor(232,255,0);
+  doc.text('SEO_AUDIT', M, 45);
+  doc.setFontSize(11); doc.setTextColor(100,100,100);
+  doc.text(currentAudit.url, M, 58);
+  doc.text(new Date(currentAudit.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'}), M, 70);
+  const sc = currentAudit.data.score;
+  const scCol = sc>=70?[22,101,52]:sc>=40?[180,83,9]:[255,43,0];
+  doc.setFillColor(...scCol);
+  doc.rect(M, 100, 55, 35, 'F');
+  doc.setFont('helvetica','bold'); doc.setFontSize(26); doc.setTextColor(255,255,255);
+  doc.text(String(sc)+'/100', M+6, 116);
+  doc.setFontSize(9); doc.text(currentAudit.data.grade||'—', M+6, 128);
+
+  doc.addPage(); y = 20;
+  section('Resumo executivo');
+  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+  const sl = doc.splitTextToSize(currentAudit.data.summary||'', W-M*2-6);
+  doc.text(sl, M+3, y); y += sl.length*4+10;
+
+  section('Problemas encontrados');
+  (currentAudit.data.issues||[]).forEach(iss => {
+    check(9);
+    const c = iss.severity==='critical'?[255,43,0]:iss.severity==='warning'?[180,83,9]:[22,101,52];
+    doc.setFillColor(...c); doc.rect(M, y, 18, 6, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(255,255,255);
+    doc.text(iss.severity==='critical'?'ERRO':iss.severity==='warning'?'AVISO':'OK', M+1, y+4.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+    const lines = doc.splitTextToSize(iss.text, W-M*2-24);
+    doc.text(lines, M+22, y+4); y += 6+(lines.length-1)*4+4;
+  });
+
+  y += 4; section('Recomendações prioritárias');
+  (currentAudit.data.recommendations||[]).forEach((r,i) => {
+    check(12);
+    doc.setFillColor(10,10,10); doc.rect(M, y, 8, 8, 'F');
+    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
+    doc.text(String(i+1), M+2, y+5.5);
+    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(60,60,60);
+    const lines = doc.splitTextToSize(r.text, W-M*2-14);
+    doc.text(lines, M+12, y+5); y += 8+(lines.length-1)*4+4;
+  });
+
+  const pc = doc.getNumberOfPages();
+  for (let p=2;p<=pc;p++) {
+    doc.setPage(p);
+    doc.setFillColor(10,10,10); doc.rect(0,285,W,12,'F');
+    doc.setTextColor(70,70,70); doc.setFont('helvetica','normal'); doc.setFontSize(8);
+    doc.text('SEO_AUDIT — Dashboard', M, 291);
+    doc.text(`${p}/${pc}`, W-M, 291, {align:'right'});
+  }
+  doc.save('seo-audit-' + new Date().toISOString().split('T')[0] + '.pdf');
+  showToast('PDF exportado');
+}
+
+// ── Toast ─────────────────────────────────────────────────────
+let tt;
+function showToast(m) {
+  const t = document.getElementById('toast');
+  t.textContent = m; t.classList.add('show');
+  clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 2800);
+}
+</script>
+</body>
+</html>
