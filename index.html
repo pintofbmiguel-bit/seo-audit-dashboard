@@ -79,6 +79,22 @@ a,button{cursor:crosshair}
 .field input::placeholder,.field textarea::placeholder{color:#aaa}
 .field textarea{resize:vertical;min-height:160px;line-height:1.65;font-size:12px}
 .field-hint{font-size:10px;color:#888;letter-spacing:.02em}
+.url-row{display:flex;gap:0}
+.url-row input{flex:1;border-right:none}
+.btn-fetch{display:inline-flex;align-items:center;gap:7px;padding:10px 18px;background:var(--yellow);border:var(--border);font-family:var(--mono);font-size:11px;font-weight:700;cursor:pointer;letter-spacing:.06em;text-transform:uppercase;white-space:nowrap;transition:all .1s;flex-shrink:0}
+.btn-fetch:hover{background:var(--black);color:var(--yellow)}
+.btn-fetch:hover svg{stroke:var(--yellow)}
+.btn-fetch:disabled{opacity:.4;cursor:not-allowed}
+.fallback-toggle{display:flex;align-items:center;gap:8px;padding:10px 14px;border:var(--border);border-top:none;background:#F0EFE8;cursor:pointer;user-select:none;transition:background .1s}
+.fallback-toggle:hover{background:var(--yellow)}
+.fallback-toggle svg{flex-shrink:0;transition:transform .2s;stroke:var(--black)}
+.fallback-toggle.open svg{transform:rotate(180deg)}
+.fallback-toggle span:first-of-type{font-size:11px;font-weight:700;font-family:var(--mono);letter-spacing:.06em;text-transform:uppercase}
+.fallback-hint{font-size:10px;color:#888;letter-spacing:.04em;margin-left:auto}
+.fallback-body{border:var(--border);border-top:none;padding:16px}
+.fetch-ok{color:#166534}
+.fetch-err{color:var(--red)}
+.fetch-loading{color:#B45309}
 .panel-foot{padding:14px 20px;border-top:var(--border);display:flex;justify-content:flex-end;background:#F0EFE8}
 
 /* Buttons */
@@ -255,12 +271,27 @@ a,button{cursor:crosshair}
         <div class="panel-body">
           <div class="field">
             <label>URL da página</label>
-            <input type="text" id="audit-url" placeholder="https://exemplo.pt/pagina-a-auditar">
+            <div class="url-row">
+              <input type="text" id="audit-url" placeholder="https://exemplo.pt/pagina-a-auditar" onkeydown="if(event.key==='Enter')runAudit()">
+              <button class="btn-fetch" id="fetch-btn" onclick="fetchUrl()" title="Buscar HTML automaticamente">
+                <svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 6.5a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0z"/><path d="M8.5 6.5H4M6 4.5l-2 2 2 2"/></svg>
+                Buscar
+              </button>
+            </div>
+            <span class="field-hint" id="fetch-status">// Insere a URL e clica "Buscar" — o HTML é carregado automaticamente</span>
           </div>
-          <div class="field">
-            <label>HTML da página *</label>
-            <textarea id="audit-html" placeholder="Cola aqui o HTML completo da página.&#10;&#10;Como obter: browser → botão direito → 'Ver código fonte' → Ctrl+A → Ctrl+C → cola aqui."></textarea>
-            <span class="field-hint">// O HTML é processado localmente — apenas os metadados são enviados para a IA</span>
+
+          <!-- Fallback manual collapsible -->
+          <div class="fallback-toggle" id="fallback-toggle" onclick="toggleFallback()">
+            <svg width="11" height="11" viewBox="0 0 11 11" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M2 4l3.5 3.5L9 4"/></svg>
+            <span id="fallback-label">Colar HTML manualmente</span>
+            <span class="fallback-hint">// usar se o fetch falhar</span>
+          </div>
+          <div class="fallback-body" id="fallback-body" style="display:none">
+            <div class="field" style="margin-top:0">
+              <textarea id="audit-html" placeholder="Cola aqui o HTML completo da página.&#10;&#10;Como obter: browser → botão direito → 'Ver código fonte' → Ctrl+A → Ctrl+C → cola aqui."></textarea>
+              <span class="field-hint">// Cola o HTML se o fetch automático não funcionar (CORS, login, etc.)</span>
+            </div>
           </div>
         </div>
         <div class="panel-foot">
@@ -455,13 +486,80 @@ function preAnalyse(html) {
   };
 }
 
+// ── Toggle fallback ───────────────────────────────────────────
+function toggleFallback() {
+  const body = document.getElementById('fallback-body');
+  const toggle = document.getElementById('fallback-toggle');
+  const open = body.style.display === 'none';
+  body.style.display = open ? 'block' : 'none';
+  toggle.classList.toggle('open', open);
+}
+
+// ── Fetch URL ─────────────────────────────────────────────────
+async function fetchUrl() {
+  const url = document.getElementById('audit-url').value.trim();
+  if (!url) { showToast('Insere uma URL primeiro'); return; }
+  const statusEl = document.getElementById('fetch-status');
+  const fetchBtn = document.getElementById('fetch-btn');
+  fetchBtn.disabled = true;
+  fetchBtn.innerHTML = '<div class="spin"></div> A buscar...';
+  statusEl.className = 'field-hint fetch-loading';
+  statusEl.textContent = '// A buscar HTML via proxy...';
+
+  const proxies = [
+    `https://api.allorigins.win/get?url=${encodeURIComponent(url)}`,
+    `https://corsproxy.io/?${encodeURIComponent(url)}`
+  ];
+
+  let html = null;
+  for (const proxy of proxies) {
+    try {
+      const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
+      if (!res.ok) continue;
+      const json = await res.json().catch(null);
+      if (json && json.contents) { html = json.contents; break; }
+      const text = await res.text().catch(null);
+      if (text && text.trim().startsWith('<')) { html = text; break; }
+    } catch { continue; }
+  }
+
+  fetchBtn.disabled = false;
+  fetchBtn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M1 6.5a5.5 5.5 0 1 0 11 0 5.5 5.5 0 0 0-11 0z"/><path d="M8.5 6.5H4M6 4.5l-2 2 2 2"/></svg> Buscar';
+
+  if (html) {
+    // store html in hidden textarea
+    document.getElementById('audit-html').value = html;
+    const bytes = Math.round(html.length / 1024);
+    statusEl.className = 'field-hint fetch-ok';
+    statusEl.textContent = `// ✓ HTML carregado — ${bytes}KB. Clica "Auditar agora".`;
+    showToast('HTML carregado com sucesso');
+  } else {
+    statusEl.className = 'field-hint fetch-err';
+    statusEl.textContent = '// ✗ Não foi possível buscar automaticamente — usa o HTML manual abaixo';
+    // auto open fallback
+    const body = document.getElementById('fallback-body');
+    const toggle = document.getElementById('fallback-toggle');
+    body.style.display = 'block';
+    toggle.classList.add('open');
+    showToast('Fetch falhou — cola o HTML manualmente');
+  }
+}
+
 // ── Run audit ─────────────────────────────────────────────────
 async function runAudit() {
   const html = document.getElementById('audit-html').value.trim();
   const url = document.getElementById('audit-url').value.trim() || 'URL não especificado';
-  if (!html) { document.getElementById('audit-html').style.outline = '3px solid var(--red)'; return; }
-  document.getElementById('audit-html').style.outline = '';
-
+  if (!html) {
+    // If no html and url exists, try to fetch first
+    if (document.getElementById('audit-url').value.trim()) {
+      await fetchUrl();
+      const newHtml = document.getElementById('audit-html').value.trim();
+      if (!newHtml) return;
+    } else {
+      showToast('Insere uma URL ou cola o HTML');
+      return;
+    }
+  }
   const btn = document.getElementById('audit-btn');
   btn.disabled = true;
   btn.innerHTML = '<div class="spin"></div> A analisar...';
