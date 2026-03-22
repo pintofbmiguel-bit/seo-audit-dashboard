@@ -424,12 +424,17 @@ document.getElementById('sb-key').value = sbKey;
 updateCount();
 
 // ── Extension bridge ───────────────────────────────────────────
-if (typeof chrome !== 'undefined' && chrome.storage) {
-  chrome.storage.local.get('seo_pending', (result) => {
-    if (!result.seo_pending) return;
-    const { html, url, ts } = result.seo_pending;
-    if (Date.now() - ts > 30000) return;
-    chrome.storage.local.remove('seo_pending');
+(function() {
+  const hash = location.hash;
+  if (!hash.startsWith('#ext=')) return;
+  try {
+    const encoded = hash.slice(5);
+    const payload = JSON.parse(decodeURIComponent(escape(atob(encoded))));
+    const { html, url } = payload;
+    if (!html) return;
+    // Clear hash from URL
+    history.replaceState(null, '', location.pathname);
+    // Fill fields
     const urlInput = document.getElementById('audit-url');
     const htmlInput = document.getElementById('audit-html');
     const statusEl = document.getElementById('fetch-status');
@@ -445,8 +450,8 @@ if (typeof chrome !== 'undefined' && chrome.storage) {
       statusEl.textContent = `// ✓ HTML injectado pela extensão — ${kb}KB. Clica "Auditar agora".`;
     }
     showToast('Página carregada pela extensão');
-  });
-}
+  } catch(e) { console.error('Extension bridge error:', e); }
+})();
 
 // ── Nav ────────────────────────────────────────────────────────
 function showView(name, btn) {
