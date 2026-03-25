@@ -621,7 +621,7 @@ a,button{cursor:crosshair}
 // ── Login ──────────────────────────────────────────────────────
 // Password guardada como hash SHA-256 — nunca em plaintext
 // Para mudar: gera novo hash em https://emn178.github.io/online-tools/sha256.html
-const PASSWORD_HASH = 'd2d97f820a7f2eba500a34709e55197a6b0cb27726aaf467e27d560c9e14c182';
+const PASSWORD_HASH = '63bceee30fabbbb2b41cc78f9587c34a5f06864b56ff49de4aada86a2cad2f51';
 
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -1329,226 +1329,203 @@ function clearHist() {
 }
 
 // ── PDF ───────────────────────────────────────────────────────
+function catScorePDF(checks) {
+  const t = (checks||[]).length; if (!t) return 0;
+  return Math.round((checks||[]).filter(c => c.pass).length / t * 100);
+}
+
 function exportPDF() {
-  if (!currentAudit || typeof window.jspdf === 'undefined') { showToast('A carregar PDF...'); return; }
+  if (!currentAudit || typeof window.jspdf === "undefined") { showToast("A carregar PDF..."); return; }
   const { jsPDF } = window.jspdf;
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
-  const W = 210, M = 16;
-  let y = 0;
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const W = 210, H = 297, ML = 14, MR = 14;
+  const CW = W - ML - MR;
+  let y = 14;
 
-  const addPage = () => { doc.addPage(); y = 24; };
-  const checkY = (n) => { if (y + n > 272) addPage(); };
-
-  const section = (title, accent) => {
-    checkY(14);
-    if (accent) {
-      doc.setFillColor(232,255,0); doc.rect(M, y, W-M*2, 9, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(10,10,10);
-    } else {
-      doc.setFillColor(10,10,10); doc.rect(M, y, W-M*2, 9, 'F');
-      doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
-    }
-    doc.text(title.toUpperCase(), M+4, y+6); y += 13;
+  const C = {
+    black:[10,10,10], white:[245,244,239], yellow:[232,255,0],
+    red:[220,38,38], orange:[180,83,9], green:[22,101,52],
+    grey1:[40,40,40], grey2:[80,80,80], grey3:[140,140,140],
+    grey4:[210,208,200], grey5:[248,247,242]
   };
 
-  const line = () => {
-    doc.setDrawColor(220,218,210); doc.setLineWidth(0.3);
-    doc.line(M, y, W-M, y); y += 4;
+  const newPage = () => {
+    doc.addPage(); y = 14;
+    doc.setFillColor(...C.black); doc.rect(0,0,3,H,"F");
+    doc.setFillColor(...C.yellow); doc.rect(0,0,3,28,"F");
+  };
+  const checkY = (n) => { if (y + n > H - 18) newPage(); };
+  const setF = (style, size, col) => { doc.setFont("helvetica",style); doc.setFontSize(size); doc.setTextColor(...col); };
+  const t = (text, x, yy, opts) => doc.text(String(text||""), x, yy, opts||{});
+  const rule = (col) => {
+    col = col||C.grey4; doc.setDrawColor(...col); doc.setLineWidth(0.25);
+    doc.line(ML, y, ML+CW, y); y += 4;
+  };
+  const sBar = (label, dark) => {
+    checkY(12);
+    if (dark) { doc.setFillColor(...C.black); doc.rect(ML,y,CW,8,"F"); setF("bold",7.5,C.yellow); }
+    else      { doc.setFillColor(...C.yellow); doc.rect(ML,y,CW,8,"F"); setF("bold",7.5,C.black); }
+    t(label.toUpperCase(), ML+4, y+5.5); y += 12;
+  };
+  const bodyTxt = (text, indent, size, col) => {
+    indent=indent||0; size=size||9; col=col||C.grey1;
+    setF("normal",size,col);
+    const ls = doc.splitTextToSize(String(text||""), CW-indent);
+    checkY(ls.length*4.8+2);
+    t(ls, ML+indent, y); y += ls.length*4.8+3;
   };
 
-  const sc = currentAudit.data.score;
-  const scCol = sc>=70?[22,101,52]:sc>=40?[180,83,9]:[255,43,0];
-  const date = new Date(currentAudit.criado_em).toLocaleDateString('pt-PT',{day:'2-digit',month:'long',year:'numeric'});
-  const kw = currentAudit.keyword || null;
+  const sc = currentAudit.data.score||0;
+  const scCol = sc>=70?C.green:sc>=40?C.orange:C.red;
+  const date = new Date(currentAudit.criado_em).toLocaleDateString("pt-PT",{day:"2-digit",month:"long",year:"numeric"});
+  const kw = currentAudit.keyword||null;
+  const grade = currentAudit.data.grade||"?";
 
-  // ── COVER PAGE ─────────────────────────────────────────────
-  doc.setFillColor(10,10,10); doc.rect(0,0,W,297,'F');
+  // ── COVER ──────────────────────────────────────────────────
+  doc.setFillColor(...C.black); doc.rect(0,0,W,H,"F");
+  doc.setFillColor(...C.yellow); doc.rect(0,0,6,H,"F");
+  doc.setFillColor(...C.yellow); doc.rect(6,0,W-6,2,"F");
 
-  // Yellow accent bar
-  doc.setFillColor(232,255,0); doc.rect(0,0,8,297,'F');
+  setF("bold",52,C.yellow); t("SEO",ML+8,58);
+  setF("bold",52,[255,255,255]); t("AUDIT",ML+8,82);
+  setF("normal",9,C.grey3); t("RELATORIO DE AUDITORIA ON-PAGE",ML+8,94);
+  doc.setDrawColor(...C.grey1); doc.setLineWidth(0.4); doc.line(ML+8,100,W-ML,100);
 
-  // Title
-  doc.setFont('helvetica','bold'); doc.setFontSize(32); doc.setTextColor(232,255,0);
-  doc.text('SEO', M+4, 52);
-  doc.setFontSize(32); doc.setTextColor(255,255,255);
-  doc.text('AUDIT', M+4, 66);
-  doc.setFontSize(10); doc.setTextColor(100,100,100);
-  doc.text('RELATÓRIO DE AUDITORIA', M+4, 78);
+  setF("normal",7.5,C.grey3); t("URL AUDITADO",ML+8,112);
+  setF("bold",9,[255,255,255]);
+  const urlL = doc.splitTextToSize(currentAudit.url||"url",W-ML-24);
+  doc.text(urlL, ML+8, 119);
+  let cy = 119 + urlL.length*5;
 
-  // Divider
-  doc.setDrawColor(40,40,40); doc.setLineWidth(0.5); doc.line(M+4, 84, W-M, 84);
+  if (kw) { setF("normal",7.5,C.grey3); t("KEYWORD",ML+8,cy+10); setF("bold",9,C.yellow); t(kw,ML+8,cy+17); cy+=17; }
+  setF("normal",7.5,C.grey3); t("DATA",ML+8,cy+10); setF("bold",9,[255,255,255]); t(date,ML+8,cy+17);
 
-  // URL & date
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
-  doc.text('URL AUDITADO', M+4, 96);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
-  const urlLines = doc.splitTextToSize(currentAudit.url, W-M*2-8);
-  doc.text(urlLines, M+4, 103);
+  // score block
+  const sbX=ML+8, sbY=166, sbH=50;
+  doc.setFillColor(...scCol); doc.rect(sbX,sbY,58,sbH,"F");
+  setF("bold",42,[255,255,255]); t(String(sc), sbX+6, sbY+34);
+  setF("bold",13,[255,255,255]); t("/100", sbX+36, sbY+34);
+  setF("bold",7.5,[255,255,255]); t(grade.toUpperCase(), sbX+6, sbY+44);
 
-  if (kw) {
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
-    doc.text('KEYWORD ALVO', M+4, 118);
-    doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(232,255,0);
-    doc.text(kw, M+4, 125);
-  }
-
-  doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(160,160,160);
-  doc.text('DATA', M+4, kw ? 136 : 120);
-  doc.setFont('helvetica','bold'); doc.setFontSize(10); doc.setTextColor(255,255,255);
-  doc.text(date, M+4, kw ? 143 : 127);
-
-  // Score box
-  doc.setFillColor(...scCol); doc.rect(M+4, 160, 60, 44, 'F');
-  doc.setFont('helvetica','bold'); doc.setFontSize(36); doc.setTextColor(255,255,255);
-  doc.text(String(sc), M+12, 188);
-  doc.setFontSize(14); doc.text('/100', M+36, 188);
-  doc.setFontSize(9); doc.text((currentAudit.data.grade||'').toUpperCase(), M+8, 197);
-
-  // Stats boxes
-  const stats = [
-    { label:'CRÍTICOS', val: (currentAudit.data.issues||[]).filter(i=>i.severity==='critical').length, col:[255,43,0] },
-    { label:'AVISOS', val: (currentAudit.data.issues||[]).filter(i=>i.severity==='warning').length, col:[180,83,9] },
-    { label:'OK', val: [...(currentAudit.data.meta_checks||[]),...(currentAudit.data.content_checks||[]),...(currentAudit.data.tech_checks||[])].filter(c=>c.pass).length, col:[22,101,52] }
+  const stats=[
+    {label:"CRITICOS",val:(currentAudit.data.issues||[]).filter(i=>i.severity==="critical").length,col:C.red},
+    {label:"AVISOS",  val:(currentAudit.data.issues||[]).filter(i=>i.severity==="warning").length, col:C.orange},
+    {label:"OK",      val:[...(currentAudit.data.meta_checks||[]),...(currentAudit.data.content_checks||[]),...(currentAudit.data.tech_checks||[])].filter(c=>c.pass).length,col:C.green}
   ];
   stats.forEach((s,i) => {
-    const bx = M+4 + 68 + i*32;
-    doc.setFillColor(20,20,20); doc.rect(bx, 160, 28, 44, 'F');
-    doc.setFillColor(...s.col); doc.rect(bx, 160, 28, 4, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(22); doc.setTextColor(255,255,255);
-    doc.text(String(s.val), bx+6, 182);
-    doc.setFontSize(7); doc.setTextColor(120,120,120);
-    doc.text(s.label, bx+4, 197);
+    const bx=sbX+64+i*36;
+    doc.setFillColor(22,22,22); doc.rect(bx,sbY,32,sbH,"F");
+    doc.setFillColor(...s.col); doc.rect(bx,sbY,32,3,"F");
+    setF("bold",24,[255,255,255]); t(String(s.val),bx+7,sbY+28);
+    setF("normal",6,C.grey3); t(s.label,bx+4,sbY+42);
   });
 
-  // Footer cover
-  doc.setFillColor(20,20,20); doc.rect(0,270,W,27,'F');
-  doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(80,80,80);
-  doc.text('Gerado por SEO Audit Dashboard · pintofbmiguel-bit.github.io/seo-audit-dashboard', M+4, 282);
-  doc.text('Análise baseada no HTML da página — valida resultados críticos com Google Search Console', M+4, 289);
+  // category bars
+  const cats=[
+    {label:"META TAGS",score:catScorePDF(currentAudit.data.meta_checks)},
+    {label:"CONTEUDO", score:catScorePDF(currentAudit.data.content_checks)},
+    {label:"TECNICO",  score:catScorePDF(currentAudit.data.tech_checks)}
+  ];
+  cats.forEach((c,i) => {
+    const cx=sbX+i*58, cy2=sbY+sbH+8;
+    const col=c.score>=70?C.green:c.score>=40?C.orange:C.red;
+    doc.setFillColor(18,18,18); doc.rect(cx,cy2,54,20,"F");
+    setF("bold",18,[255,255,255]); t(c.score+"%",cx+5,cy2+13);
+    setF("normal",6,C.grey3); t(c.label,cx+5,cy2+19);
+    doc.setFillColor(35,35,35); doc.rect(cx,cy2+20,54,2,"F");
+    doc.setFillColor(...col); doc.rect(cx,cy2+20,54*c.score/100,2,"F");
+  });
 
-  // ── PAGE 2: RESUMO + KEYWORD ───────────────────────────────
-  addPage();
-  doc.setFillColor(245,244,239); doc.rect(0,0,W,297,'F');
-  doc.setFillColor(232,255,0); doc.rect(0,0,4,297,'F');
+  // cover footer
+  doc.setFillColor(18,18,18); doc.rect(0,H-16,W,16,"F");
+  setF("normal",7,C.grey2); t("SEO Audit Dashboard — pintofbmiguel-bit.github.io/seo-audit-dashboard",ML+8,H-8);
+  setF("normal",6.5,C.grey2); t("Analise baseada no HTML da pagina. Complementar com Google Search Console.",ML+8,H-3);
 
-  section('Resumo executivo', true);
-  doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
-  const sumLines = doc.splitTextToSize(currentAudit.data.summary||'', W-M*2-6);
-  doc.text(sumLines, M, y); y += sumLines.length*5.2+8;
+  // ── PAGE 2+ ────────────────────────────────────────────────
+  newPage();
+  setF("bold",7,C.grey3); t("SEO AUDIT  /  "+(currentAudit.url||"url").substring(0,55),ML+6,10);
+  doc.setDrawColor(...C.grey4); doc.setLineWidth(0.25); doc.line(ML,13,W-MR,13);
+  y = 20;
+
+  sBar("Resumo executivo",true);
+  bodyTxt(currentAudit.data.summary||"—",0,9.5,C.grey1);
 
   if (kw && currentAudit.data.keyword_analysis) {
-    checkY(20);
-    section(`Análise de keyword: "${kw}"`, false);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9.5); doc.setTextColor(40,40,40);
-    const kwLines = doc.splitTextToSize(currentAudit.data.keyword_analysis, W-M*2-6);
-    doc.text(kwLines, M, y); y += kwLines.length*5.2+8;
+    checkY(16); sBar("Keyword: "+kw,false);
+    bodyTxt(currentAudit.data.keyword_analysis,0,9.5,C.grey1);
   }
 
-  // ── CHECKS ────────────────────────────────────────────────
-  checkY(20);
-  section('Verificações técnicas', false);
-
-  const allChecks = [
-    { title:'Meta tags', items: currentAudit.data.meta_checks||[] },
-    { title:'Conteúdo', items: currentAudit.data.content_checks||[] },
-    { title:'Boas práticas', items: currentAudit.data.tech_checks||[] }
-  ];
-
-  allChecks.forEach(group => {
-    checkY(14);
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(80,80,80);
-    doc.text('— ' + group.title.toUpperCase(), M, y); y += 6;
-    group.items.forEach(c => {
-      checkY(8);
-      const col = c.pass ? [22,101,52] : [255,43,0];
-      doc.setFillColor(...col); doc.rect(M, y, 5, 5, 'F');
-      doc.setFont('helvetica', c.pass?'normal':'bold'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-      doc.text(c.label, M+8, y+4);
-      if (c.value) {
-        doc.setFont('helvetica','normal'); doc.setFontSize(8); doc.setTextColor(120,120,120);
-        doc.text(String(c.value), W-M, y+4, {align:'right'});
-      }
-      y += 7;
-    });
-    y += 4;
+  checkY(16); sBar("Verificacoes tecnicas",true);
+  [{title:"META TAGS",items:currentAudit.data.meta_checks||[]},
+   {title:"CONTEUDO", items:currentAudit.data.content_checks||[]},
+   {title:"BOAS PRATICAS",items:currentAudit.data.tech_checks||[]}
+  ].forEach(g => {
+    checkY(10); setF("bold",7.5,C.grey2); t("- "+g.title,ML,y); y+=5;
+    g.items.forEach(c => {
+      checkY(7);
+      doc.setFillColor(...(c.pass?C.green:C.red)); doc.rect(ML,y-3.5,4,4,"F");
+      setF(c.pass?"normal":"bold",8.5,c.pass?C.grey1:C.red); t(c.label,ML+6,y);
+      if(c.value){setF("normal",7.5,C.grey3); t(String(c.value),W-MR,y,{align:"right"});}
+      y+=6;
+    }); y+=3;
   });
 
-  // ── ISSUES ────────────────────────────────────────────────
-  checkY(20);
-  section('Problemas encontrados', false);
+  checkY(16); rule(); sBar("Problemas encontrados",true);
   (currentAudit.data.issues||[]).forEach(iss => {
-    checkY(12);
-    const c = iss.severity==='critical'?[255,43,0]:iss.severity==='warning'?[180,83,9]:[22,101,52];
-    const label = iss.severity==='critical'?'ERRO':iss.severity==='warning'?'AVISO':'OK';
-    doc.setFillColor(...c); doc.rect(M, y, 16, 6, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(7); doc.setTextColor(255,255,255);
-    doc.text(label, M+1.5, y+4.3);
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-    const lines = doc.splitTextToSize(iss.text, W-M*2-22);
-    doc.text(lines, M+20, y+4); y += Math.max(8, lines.length*5)+3;
+    checkY(10);
+    const col=iss.severity==="critical"?C.red:iss.severity==="warning"?C.orange:C.green;
+    const lbl=iss.severity==="critical"?"ERRO":iss.severity==="warning"?"AVISO":"OK";
+    doc.setFillColor(...col); doc.rect(ML,y-4,18,5.5,"F");
+    setF("bold",6.5,[255,255,255]); t(lbl,ML+1.5,y);
+    setF("normal",9,C.grey1);
+    const ls=doc.splitTextToSize(iss.text,CW-22); t(ls,ML+21,y);
+    y+=Math.max(7,ls.length*5)+2;
   });
 
-  // ── RECOMMENDATIONS ────────────────────────────────────────
-  checkY(20);
-  section('Recomendações prioritárias', true);
+  checkY(16); rule(); sBar("Recomendacoes prioritarias",false);
   (currentAudit.data.recommendations||[]).forEach((r,i) => {
-    checkY(14);
-    const rText = typeof r === 'string' ? r : r.text;
-    const priority = r.priority || 'medium';
-    const pCol = priority==='high'?[255,43,0]:priority==='medium'?[180,83,9]:[22,101,52];
-
-    doc.setFillColor(10,10,10); doc.rect(M, y, 8, 8, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(232,255,0);
-    doc.text(String(i+1), M+2.5, y+5.5);
-
-    doc.setFillColor(...pCol); doc.rect(M+10, y+1, 14, 5, 'F');
-    doc.setFont('helvetica','bold'); doc.setFontSize(6); doc.setTextColor(255,255,255);
-    doc.text(priority.toUpperCase(), M+11, y+4.8);
-
-    doc.setFont('helvetica','normal'); doc.setFontSize(9); doc.setTextColor(40,40,40);
-    const lines = doc.splitTextToSize(rText, W-M*2-30);
-    doc.text(lines, M+27, y+5); y += Math.max(10, lines.length*5)+4;
+    checkY(12);
+    const rTxt=typeof r==="string"?r:(r.text||"");
+    const pri=(typeof r==="object"&&r.priority)?r.priority:"medium";
+    const pCol=pri==="high"?C.red:pri==="medium"?C.orange:C.green;
+    doc.setFillColor(...C.black); doc.rect(ML,y-5,7,7,"F");
+    setF("bold",7,C.yellow); t(String(i+1),ML+1.5,y);
+    doc.setFillColor(...pCol); doc.rect(ML+9,y-4.5,16,5.5,"F");
+    setF("bold",6,[255,255,255]); t(pri.toUpperCase(),ML+10,y);
+    setF("normal",9,C.grey1);
+    const ls=doc.splitTextToSize(rTxt,CW-30); t(ls,ML+28,y);
+    y+=Math.max(9,ls.length*5)+3;
   });
 
-  // ── LIMITATIONS ────────────────────────────────────────────
-  checkY(20);
-  section('Âmbito da análise e limitações', false);
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(22,101,52);
-  doc.text('O QUE FOI ANALISADO', M, y); y += 5;
-  const analysed = ['Meta title e description','Estrutura de headings (H1–H3)','Imagens sem alt text','Links internos e externos','Canonical, viewport, schema markup','Open Graph e redes sociais', kw?`Relevância para keyword "${kw}"`:null].filter(Boolean);
-  analysed.forEach(item => {
-    checkY(6); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
-    doc.text('✓  ' + item, M+2, y); y += 5.5;
-  });
-  y += 4;
-  doc.setFont('helvetica','bold'); doc.setFontSize(8); doc.setTextColor(255,43,0);
-  doc.text('O QUE NÃO FOI ANALISADO', M, y); y += 5;
-  ['Velocidade / Core Web Vitals','Backlinks e autoridade de domínio','Indexação e robots.txt','Redirects e erros 404','Dados reais do Google Search Console','Outras páginas do site'].forEach(item => {
-    checkY(6); doc.setFont('helvetica','normal'); doc.setFontSize(8.5); doc.setTextColor(60,60,60);
-    doc.text('✗  ' + item, M+2, y); y += 5.5;
-  });
-  y += 6;
-  doc.setDrawColor(220,218,210); doc.setLineWidth(0.3); doc.line(M, y, W-M, y); y += 6;
-  doc.setFont('helvetica','italic'); doc.setFontSize(8); doc.setTextColor(120,120,120);
-  const disclaimer = 'Esta análise é baseada exclusivamente no HTML desta página e deve ser complementada com dados do Google Search Console, PageSpeed Insights e uma auditoria técnica completa.';
-  const dLines = doc.splitTextToSize(disclaimer, W-M*2);
-  doc.text(dLines, M, y);
+  checkY(44); rule(); sBar("Ambito da analise e limitacoes",true);
+  const anal=["Meta title e description","Estrutura de headings (H1-H3)","Imagens sem alt text","Links internos e externos","Canonical, viewport, schema markup","Open Graph / redes sociais",...(kw?["Relevancia para keyword "+kw]:[])];
+  const notA=["Velocidade / Core Web Vitals","Backlinks e autoridade","Indexacao e robots.txt","Redirects e erros 404","Dados do Google Search Console","Outras paginas do site"];
+  const colW=(CW-6)/2, startY=y;
+  setF("bold",7,C.green); t("O QUE FOI ANALISADO",ML,y); y+=5;
+  anal.forEach(item=>{checkY(5);doc.setFillColor(...C.green);doc.circle(ML+1.5,y-1.5,1,"F");setF("normal",8,C.grey1);t(item,ML+5,y);y+=5;});
+  const c2X=ML+colW+4; let y2=startY;
+  setF("bold",7,C.red); t("NAO ANALISADO",c2X,y2); y2+=5;
+  notA.forEach(item=>{doc.setFillColor(...C.red);doc.circle(c2X+1.5,y2-1.5,1,"F");setF("normal",8,C.grey1);t(item,c2X+5,y2);y2+=5;});
+  y=Math.max(y,y2)+6; rule();
+  setF("italic",7.5,C.grey3);
+  const disc="Esta analise e baseada exclusivamente no HTML desta pagina. Deve ser complementada com Google Search Console, PageSpeed Insights e auditoria tecnica completa.";
+  const dL=doc.splitTextToSize(disc,CW); t(dL,ML,y);
 
-  // ── FOOTER ALL PAGES ───────────────────────────────────────
-  const pc = doc.getNumberOfPages();
-  for (let p=1;p<=pc;p++) {
+  // footer all pages
+  const pc=doc.getNumberOfPages();
+  for(let p=2;p<=pc;p++){
     doc.setPage(p);
-    if (p > 1) {
-      doc.setFillColor(10,10,10); doc.rect(0,286,W,11,'F');
-      doc.setFont('helvetica','normal'); doc.setFontSize(7.5); doc.setTextColor(80,80,80);
-      doc.text('SEO AUDIT — ' + currentAudit.url, M, 292);
-      doc.text(`${p} / ${pc}`, W-M, 292, {align:'right'});
-    }
+    doc.setFillColor(...C.black); doc.rect(0,H-10,W,10,"F");
+    setF("normal",6.5,C.grey2); t("SEO AUDIT",ML+6,H-4);
+    t(p+" / "+pc,W-MR,H-4,{align:"right"});
+    t((currentAudit.url||"").substring(0,65),W/2,H-4,{align:"center"});
   }
 
-  doc.save(`seo-audit-${currentAudit.url.replace(/https?:\/\//,'').replace(/[^a-z0-9]/gi,'-').substring(0,30)}-${new Date().toISOString().split('T')[0]}.pdf`);
-  showToast('PDF exportado');
+  const slug=(currentAudit.url||"audit").replace(/https?:\/\//,"").replace(/[^a-z0-9]/gi,"-").substring(0,30);
+  doc.save("seo-audit-"+slug+"-"+new Date().toISOString().split("T")[0]+".pdf");
+  showToast("PDF exportado");
 }
+
 
 // ── Toast ─────────────────────────────────────────────────────
 function showToast(m) {
