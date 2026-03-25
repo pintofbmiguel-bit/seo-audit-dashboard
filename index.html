@@ -621,7 +621,7 @@ a,button{cursor:crosshair}
 // ── Login ──────────────────────────────────────────────────────
 // Password guardada como hash SHA-256 — nunca em plaintext
 // Para mudar: gera novo hash em https://emn178.github.io/online-tools/sha256.html
-const PASSWORD_HASH = '63bceee30fabbbb2b41cc78f9587c34a5f06864b56ff49de4aada86a2cad2f51';
+const PASSWORD_HASH = 'd2d97f820a7f2eba500a34709e55197a6b0cb27726aaf467e27d560c9e14c182';
 
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
