@@ -619,10 +619,9 @@ a,button{cursor:crosshair}
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script>
 // ── Login ──────────────────────────────────────────────────────
-// Password é guardada como hash SHA-256 — nunca em plaintext
-// Para mudar a password: gera um novo hash em https://emn178.github.io/online-tools/sha256.html
-// Password actual: seoaudit2026
-const PASSWORD_HASH = '139affc2894084c73724f16bb32e04dc744f2afa1fa42e84d4296957de6caa7c';
+// Password guardada como hash SHA-256 — nunca em plaintext
+// Para mudar: gera novo hash em https://emn178.github.io/online-tools/sha256.html
+const PASSWORD_HASH = '63bceee30fabbbb2b41cc78f9587c34a5f06864b56ff49de4aada86a2cad2f51';
 
 async function hashPassword(pw) {
   const buf = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(pw));
@@ -633,7 +632,7 @@ async function checkLogin() {
   const pw = document.getElementById('login-input').value;
   const hash = await hashPassword(pw);
   if (hash === PASSWORD_HASH) {
-    sessionStorage.setItem('seo-auth', '1');
+    localStorage.setItem('seo-auth', '1');
     document.getElementById('login-screen').classList.add('hidden');
     document.getElementById('shell').style.display = '';
     initDashboard();
@@ -646,8 +645,8 @@ async function checkLogin() {
   }
 }
 
-// Check if already authenticated this session
-if (sessionStorage.getItem('seo-auth') === '1') {
+// Check if already authenticated
+if (localStorage.getItem('seo-auth') === '1') {
   document.getElementById('login-screen').classList.add('hidden');
   document.getElementById('shell').style.display = '';
 }
@@ -672,7 +671,7 @@ function initDashboard() {
 }
 
 // If already logged in, init immediately
-if (sessionStorage.getItem('seo-auth') === '1') initDashboard();
+if (localStorage.getItem('seo-auth') === '1') initDashboard();
 
 // ── Extension bridge ───────────────────────────────────────────
 function checkExtBridge() {
@@ -750,7 +749,7 @@ async function sbSave(record) {
       body: JSON.stringify(record)
     });
     return r.ok;
-  } catch { return false; }
+  } catch(err) { return false; }
 }
 
 // ── Pre-analysis ──────────────────────────────────────────────
@@ -779,7 +778,6 @@ function preAnalyse(html, keyword) {
   let kwData = null;
   if (keyword) {
     const kw = keyword.toLowerCase().trim();
-    const kwWords = kw.split(/\s+/);
     const bodyLower = bodyText.toLowerCase();
     const titleLower = title.toLowerCase();
     const descLower = metaDesc.toLowerCase();
@@ -856,11 +854,11 @@ async function fetchUrl() {
     try {
       const res = await fetch(proxy, { signal: AbortSignal.timeout(10000) });
       if (!res.ok) continue;
-      const json = await res.json().catch(null);
+      const json = await res.json().catch(() => null);
       if (json && json.contents) { html = json.contents; break; }
-      const text = await res.text().catch(null);
+      const text = await res.text().catch(() => null);
       if (text && text.trim().startsWith('<')) { html = text; break; }
-    } catch { continue; }
+    } catch(err) { console.warn('Proxy failed:', err.message); continue; }
   }
 
   fetchBtn.disabled = false;
@@ -889,7 +887,7 @@ async function fetchUrl() {
 async function runAudit() {
   const html = document.getElementById('audit-html').value.trim();
   const url = document.getElementById('audit-url').value.trim() || 'URL não especificado';
-  const keyword = document.getElementById('audit-keyword').value.trim();
+  const keyword = document.getElementById('audit-keyword').value.trim().substring(0, 100).replace(/["`]/g, '');
   if (!html) {
     // If no html and url exists, try to fetch first
     if (document.getElementById('audit-url').value.trim()) {
@@ -946,7 +944,9 @@ Responde APENAS com JSON válido:
   let data;
   try {
     const res = await fetch('https://seo-audit-proxy.pintofbmiguel.workers.dev', {
-      method: 'POST', headers: { 'Content-Type': 'application/json' },
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      signal: AbortSignal.timeout(30000),
       body: JSON.stringify({ model: 'claude-sonnet-4-20250514', max_tokens: 2000, messages: [{ role: 'user', content: prompt }] })
     });
     if (res.status === 429) {
@@ -966,6 +966,15 @@ Responde APENAS com JSON válido:
       document.getElementById('audit-empty').style.display = '';
       return;
     }
+    if (e.name === 'TimeoutError' || e.name === 'AbortError') {
+      showToast('Tempo de resposta excedido — tenta novamente');
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" viewBox="0 0 13 13" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><circle cx="6" cy="6" r="4"/><path d="M9 9L12 12"/></svg> Auditar agora';
+      setStatus('Timeout — tenta novamente', false);
+      document.getElementById('audit-empty').style.display = '';
+      return;
+    }
+    console.warn('AI API failed, using fallback:', e.message);
     data = buildFallback(local);
   }
 
@@ -1238,12 +1247,36 @@ function serpTab(tab, btn) {
 // ── Save ──────────────────────────────────────────────────────
 async function saveAudit() {
   if (!currentAudit) return;
+  // Store only metadata — not the full HTML — to avoid hitting localStorage 5MB limit
+  const auditToSave = {
+    id: currentAudit.id,
+    url: currentAudit.url,
+    keyword: currentAudit.keyword || '',
+    criado_em: currentAudit.criado_em,
+    data: currentAudit.data,
+    local: {
+      title: currentAudit.local?.title,
+      metaDesc: currentAudit.local?.metaDesc,
+      titleLen: currentAudit.local?.titleLen,
+      metaDescLen: currentAudit.local?.metaDescLen,
+      h1Count: currentAudit.local?.h1Count,
+      wordCount: currentAudit.local?.wordCount,
+      score: currentAudit.data?.score
+    }
+  };
   const rec = { url: currentAudit.url, score: currentAudit.data.score, grade: currentAudit.data.grade, issues_json: JSON.stringify(currentAudit.data.issues), recs_json: JSON.stringify(currentAudit.data.recommendations), criado_em: currentAudit.criado_em };
   const ok = await sbSave(rec);
-  if (ok) currentAudit.id = 'sb-' + Date.now();
-  audits.unshift(currentAudit);
+  if (ok) auditToSave.id = 'sb-' + Date.now();
+  audits.unshift(auditToSave);
   if (audits.length > 50) audits.pop();
-  localStorage.setItem('seo-audits-b', JSON.stringify(audits));
+  try {
+    localStorage.setItem('seo-audits-b', JSON.stringify(audits));
+  } catch(e) {
+    // localStorage full — remove oldest entries and retry
+    console.warn('localStorage full, trimming audits');
+    audits = audits.slice(0, 20);
+    localStorage.setItem('seo-audits-b', JSON.stringify(audits));
+  }
   filteredAudits = [...audits];
   updateCount();
   showToast(ok ? 'Guardado no Supabase' : 'Guardado localmente');
